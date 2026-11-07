@@ -10,15 +10,24 @@ type ScreenProps = {
   /** Which safe-area edges to pad. Screens under a native header/tab bar pass fewer. */
   edges?: Edge[];
   contentStyle?: StyleProp<ViewStyle>;
+  /** Set false to freeze the page scroll, e.g. while the user drags an embedded map. */
+  scrollEnabled?: boolean;
 };
 
 /** Themed full-screen container with consistent gutters. */
-export function Screen({ children, scroll, edges = ['top', 'left', 'right'], contentStyle }: ScreenProps) {
+export function Screen({
+  children,
+  scroll,
+  edges = ['top', 'left', 'right'],
+  contentStyle,
+  scrollEnabled = true,
+}: ScreenProps) {
   const theme = useTheme();
   return (
     <SafeAreaView edges={edges} style={[styles.fill, { backgroundColor: theme.background }]}>
       {scroll ? (
         <ScrollView
+          scrollEnabled={scrollEnabled}
           contentInsetAdjustmentBehavior="automatic"
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={[styles.content, contentStyle]}>

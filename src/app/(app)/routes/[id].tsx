@@ -1,12 +1,17 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { Maximize2, Share2, Trash, Undo2, Users } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Share, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, Share, StyleSheet, View } from 'react-native';
 
 import { LiveMap } from '@/components/map/live-map';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Glass } from '@/components/ui/glass';
+import { Icon } from '@/components/ui/icon';
 import { Screen } from '@/components/ui/screen';
 import { Radius, Spacing } from '@/constants/theme';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/hooks/use-theme';
 import { backend } from '@/lib/backend';
 import { formatDistance, formatDuration } from '@/lib/geo';
@@ -18,23 +23,25 @@ import { useProfile } from '@/providers/auth-provider';
 export default function SavedRouteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
+  const { t } = useI18n();
   const me = useProfile();
   const [saved, setSaved] = useState<SavedRoute | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  // While a finger is on the embedded map the page must not scroll, or map drags would fight it.
+  const [mapActive, setMapActive] = useState(false);
 
   useEffect(() => {
     backend.routes
       .get(id)
       .then(setSaved)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Could not load this route.'));
-  }, [id]);
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : t('route.loadError')));
+  }, [id, t]);
 
   if (!saved) {
     return (
       <Screen>
-        {error ? <ThemedText themeColor="danger">{error}</ThemedText> : <ActivityIndicator color={theme.primary} />}
+        {error ? <ThemedText themeColor="danger">{error}</ThemedText> : <ActivityIndicator color={theme.primaryDark} />}
       </Screen>
     );
   }
@@ -44,11 +51,10 @@ export default function SavedRouteScreen() {
   async function run(action: () => Promise<void>) {
     setBusy(true);
     setError(null);
-    setNotice(null);
     try {
       await action();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong.');
+      setError(e instanceof Error ? e.message : t('session.error'));
     } finally {
       setBusy(false);
     }
@@ -67,10 +73,10 @@ export default function SavedRouteScreen() {
   /** Trip home: route from the destination back to where this one started. */
   const reverse = () =>
     run(async () => {
-      if (!saved.origin) throw new Error('This route has no start point to return to.');
+      if (!saved.origin) throw new Error(t('route.noStart'));
       const back = await getRoute(saved.destination.coord, saved.origin.coord);
       const created = await backend.routes.save({
-        name: `${saved.name} (trip home)`,
+        name: `${saved.name} ${t('route.tripHomeSuffix')}`,
         origin: saved.destination,
         destination: saved.origin,
         route: back,
@@ -82,7 +88,11 @@ export default function SavedRouteScreen() {
     run(async () => {
       if (!saved.isShared) setSaved(await backend.routes.setShared(saved.id, true));
       await Share.share({
-        message: `Check out this route on Glidy: "${saved.name}" (${formatDistance(saved.route.distance)}). Open: glidyapp://routes/${saved.id}`,
+        message: t('route.shareMessage', {
+          name: saved.name,
+          distance: formatDistance(saved.route.distance),
+          link: `glidyapp://routes/${saved.id}`,
+        }),
       });
     });
 
@@ -98,10 +108,10 @@ export default function SavedRouteScreen() {
     });
 
   const confirmDelete = () =>
-    Alert.alert('Delete this route?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('route.deleteTitle'), t('route.deleteBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('route.delete'),
         style: 'destructive',
         onPress: () =>
           run(async () => {
@@ -112,9 +122,13 @@ export default function SavedRouteScreen() {
     ]);
 
   return (
-    <Screen scroll edges={['left', 'right', 'bottom']}>
+    <Screen scroll scrollEnabled={!mapActive} edges={['left', 'right', 'bottom']}>
       <Stack.Screen options={{ title: saved.name }} />
-      <View style={[styles.map, { borderColor: theme.border }]}>
+      <View
+        style={[styles.map, { borderColor: theme.border }]}
+        onTouchStart={() => setMapActive(true)}
+        onTouchEnd={() => setMapActive(false)}
+        onTouchCancel={() => setMapActive(false)}>
         <LiveMap
           route={saved.route}
           destination={saved.destination}
@@ -123,6 +137,19 @@ export default function SavedRouteScreen() {
           fitSignal={0}
           insets={{ top: 24, bottom: 24 }}
         />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('route.fullscreen')}
+          onPress={() => router.push({ pathname: '/routes/map', params: { id: saved.id } })}
+          style={({ pressed }) => [styles.maximize, { opacity: pressed ? 0.7 : 1 }]}>
+          <Glass
+            style={styles.maximizeGlass}
+            fallbackColor={theme.backgroundElement}
+            fallbackBorderColor={theme.border}
+            interactive>
+            <Icon icon={Maximize2} size={18} />
+          </Glass>
+        </Pressable>
       </View>
 
       <View style={styles.summary}>
@@ -130,9 +157,9 @@ export default function SavedRouteScreen() {
           {saved.destination.name}
         </ThemedText>
         <ThemedText themeColor="textSecondary">
-          {saved.origin ? `From ${saved.origin.name} · ` : ''}
+          {saved.origin ? `${t('route.from', { name: saved.origin.name })} · ` : ''}
           {formatDistance(saved.route.distance)} · {formatDuration(saved.route.duration)}
-          {saved.isShared ? ' · Shared' : ''}
+          {saved.isShared ? ` · ${t('routes.shared')}` : ''}
         </ThemedText>
       </View>
 
@@ -141,65 +168,56 @@ export default function SavedRouteScreen() {
           {error}
         </ThemedText>
       )}
-      {notice && (
-        <ThemedText type="small" themeColor="textSecondary">
-          {notice}
-        </ThemedText>
-      )}
 
-      <Button label="Start a group with this route" onPress={startGroup} loading={busy} icon={{ sf: 'person.3.fill', md: 'groups' }} />
+      <Button label={t('route.startGroup')} onPress={startGroup} loading={busy} icon={Users} />
       {mine ? (
         <>
           <View style={styles.row}>
-            <Button
-              label="Trip home"
-              variant="secondary"
-              onPress={reverse}
-              disabled={busy}
-              icon={{ sf: 'arrow.uturn.backward', md: 'u_turn_left' }}
-              style={styles.flex}
-            />
-            <Button
-              label="Share"
-              variant="secondary"
-              onPress={share}
-              disabled={busy}
-              icon={{ sf: 'square.and.arrow.up', md: 'share' }}
-              style={styles.flex}
-            />
+            <Button label={t('route.tripHome')} variant="secondary" onPress={reverse} disabled={busy} icon={Undo2} style={styles.flex} />
+            <Button label={t('route.share')} variant="secondary" onPress={share} disabled={busy} icon={Share2} style={styles.flex} />
           </View>
-          <Button label="Delete route" variant="danger" onPress={confirmDelete} disabled={busy} />
+          <Button label={t('route.delete')} variant="danger" onPress={confirmDelete} disabled={busy} icon={Trash} />
         </>
       ) : (
-        <Button label="Save a copy" variant="secondary" onPress={saveCopy} disabled={busy} />
+        <Button label={t('route.saveCopy')} variant="secondary" onPress={saveCopy} disabled={busy} />
       )}
 
-      <ThemedText type="smallBold" themeColor="textSecondary" style={styles.stepsTitle}>
-        DIRECTIONS
+      <ThemedText type="smallBold" style={styles.stepsTitle}>
+        {t('route.directions')}
       </ThemedText>
-      {saved.route.steps.map((step, index) => (
-        <View key={index} style={[styles.step, { borderColor: theme.border }]}>
-          <ThemedText type="small" style={styles.stepText}>
-            {step.instruction}
-          </ThemedText>
-          {step.distance > 0 && (
-            <ThemedText type="small" themeColor="textSecondary">
-              {formatDistance(step.distance)}
+      <Card style={styles.steps}>
+        {saved.route.steps.map((step, index) => (
+          <View
+            key={index}
+            style={[
+              styles.step,
+              index < saved.route.steps.length - 1 && { borderBottomColor: theme.border, borderBottomWidth: StyleSheet.hairlineWidth },
+            ]}>
+            <ThemedText type="small" style={styles.stepText}>
+              {step.instruction}
             </ThemedText>
-          )}
-        </View>
-      ))}
+            {step.distance > 0 && (
+              <ThemedText type="small" themeColor="textSecondary">
+                {formatDistance(step.distance)}
+              </ThemedText>
+            )}
+          </View>
+        ))}
+      </Card>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  map: { height: 240, borderRadius: Radius.md, overflow: 'hidden', borderWidth: 1 },
+  map: { height: 260, borderRadius: Radius.lg, overflow: 'hidden', borderWidth: 1 },
+  maximize: { position: 'absolute', top: Spacing.two, right: Spacing.two },
+  maximizeGlass: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   summary: { gap: Spacing.one },
   title: { fontSize: 28, lineHeight: 36 },
   row: { flexDirection: 'row', gap: Spacing.two },
   flex: { flex: 1 },
-  stepsTitle: { marginTop: Spacing.two },
-  step: { flexDirection: 'row', gap: Spacing.three, paddingVertical: Spacing.two, borderBottomWidth: StyleSheet.hairlineWidth },
+  stepsTitle: { marginTop: Spacing.two, fontSize: 18, lineHeight: 24 },
+  steps: { padding: 0, paddingHorizontal: Spacing.three },
+  step: { flexDirection: 'row', gap: Spacing.three, paddingVertical: Spacing.three },
   stepText: { flex: 1 },
 });

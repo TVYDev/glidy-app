@@ -50,7 +50,8 @@
           "recordAudioAndroid": false
         }
       ],
-      "@rnmapbox/maps"
+      "@rnmapbox/maps",
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1,6 +1,14 @@
 /**
- * Glidy design tokens. Greens are the brand colour, yellow is the accent used for
- * highlights (selected states, badges), and surfaces are soft neutral cards.
+ * Glidy design tokens. The palette is taken from the Glidy web project (amber on warm
+ * cream, with a warm dark mode), so the app and the site feel like one product.
+ *
+ * Token meaning (names kept stable so components do not care about the palette):
+ *   background          page
+ *   backgroundElement   cards and inputs (web: --card)
+ *   backgroundSelected  secondary surfaces, chips, pressed states (web: --secondary / --muted)
+ *   primary             brand amber: buttons, badges, active tab (web: --primary / --amber)
+ *   primaryDark         deeper amber for text on light surfaces (web: --amber-dark)
+ *   accent              soft amber tint for highlights (web: --accent / --amber-light)
  */
 
 import '@/global.css';
@@ -9,48 +17,82 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#10201A',
-    background: '#E4E7E3',
-    backgroundElement: '#F2F4F1',
-    backgroundSelected: '#D5DAD4',
-    textSecondary: '#5B6A62',
-    primary: '#2F7A4F',
-    primaryDark: '#1F5C3A',
-    onPrimary: '#FFFFFF',
-    accent: '#F4C430',
-    onAccent: '#1B1B12',
-    border: '#CBD1CA',
-    danger: '#C8402E',
-    tabBar: '#0E1511',
+    text: '#212121',
+    background: '#F9F6F0',
+    backgroundElement: '#FFFFFF',
+    backgroundSelected: '#F0EBE0',
+    textSecondary: '#737373',
+    primary: '#EFB708',
+    primaryDark: '#C07A10',
+    onPrimary: '#212121',
+    accent: '#FDEFC3',
+    onAccent: '#212121',
+    border: '#E8DFC8',
+    danger: '#EF4444',
+    /** Floating tab bar and other "ink" surfaces. */
+    ink: '#212121',
+    onInk: '#F9F6F0',
   },
   dark: {
-    text: '#F1F5F2',
-    background: '#0C120F',
-    backgroundElement: '#17201B',
-    backgroundSelected: '#223029',
-    textSecondary: '#9DB0A5',
-    primary: '#4C9F6B',
-    primaryDark: '#2F7A4F',
-    onPrimary: '#06120B',
-    accent: '#F4C430',
-    onAccent: '#1B1B12',
-    border: '#2B3A32',
-    danger: '#E8604C',
-    tabBar: '#050806',
+    text: '#F9F6F0',
+    background: '#1A1814',
+    backgroundElement: '#242018',
+    backgroundSelected: '#2E2920',
+    textSecondary: '#A3A3A3',
+    primary: '#EFB708',
+    primaryDark: '#EFB708',
+    onPrimary: '#212121',
+    accent: '#3D3528',
+    onAccent: '#F9F6F0',
+    border: '#3D3528',
+    danger: '#EF4444',
+    ink: '#0F0D0A',
+    onInk: '#F9F6F0',
   },
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
+export type Language = 'en' | 'km';
+export type FontWeight = 400 | 500 | 600 | 700 | 800;
+
+/**
+ * Exo 2 for English and Kantumruy Pro for Khmer (the same pairing as the web project).
+ * On native each weight is its own font family, so the weight is part of the family name
+ * and `fontWeight` must not be set on text that uses these.
+ */
+const FONT_FAMILIES: Record<Language, Record<FontWeight, string>> = {
+  en: {
+    400: 'Exo2_400Regular',
+    500: 'Exo2_500Medium',
+    600: 'Exo2_600SemiBold',
+    700: 'Exo2_700Bold',
+    800: 'Exo2_800ExtraBold',
+  },
+  km: {
+    400: 'KantumruyPro_400Regular',
+    500: 'KantumruyPro_500Medium',
+    600: 'KantumruyPro_600SemiBold',
+    700: 'KantumruyPro_700Bold',
+    // Kantumruy Pro tops out at 700.
+    800: 'KantumruyPro_700Bold',
+  },
+};
+
+export function fontFamilyFor(language: Language, weight: FontWeight | string | number | undefined): string {
+  const w = Number(weight) || 400;
+  const nearest: FontWeight = w >= 800 ? 800 : w >= 700 ? 700 : w >= 600 ? 600 : w >= 500 ? 500 : 400;
+  return FONT_FAMILIES[language][nearest];
+}
+
+/** Khmer glyphs are taller than Latin ones and need more line height to avoid clipping. */
+export const KHMER_LINE_HEIGHT_SCALE = 1.2;
+
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
   },
   default: {
@@ -77,13 +119,15 @@ export const Spacing = {
   six: 64,
 } as const;
 
+/** Web project uses --radius: 1rem as its base. */
 export const Radius = {
   sm: 12,
-  md: 20,
-  lg: 28,
+  md: 16,
+  lg: 24,
+  xl: 32,
   pill: 999,
 } as const;
 
 /** Space to keep clear under scrolling content for the floating tab bar. */
-export const BottomTabInset = Platform.select({ ios: 96, android: 80 }) ?? 0;
+export const BottomTabInset = 112;
 export const MaxContentWidth = 800;

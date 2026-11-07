@@ -1,3 +1,17 @@
+import {
+  Exo2_400Regular,
+  Exo2_500Medium,
+  Exo2_600SemiBold,
+  Exo2_700Bold,
+  Exo2_800ExtraBold,
+} from '@expo-google-fonts/exo-2';
+import {
+  KantumruyPro_400Regular,
+  KantumruyPro_500Medium,
+  KantumruyPro_600SemiBold,
+  KantumruyPro_700Bold,
+} from '@expo-google-fonts/kantumruy-pro';
+import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -19,15 +33,29 @@ export default function RootLayout() {
 
 function Navigation() {
   const { profile } = useAuth();
+  // Exo 2 for English, Kantumruy Pro for Khmer. A font error must not block the app: fall back to system fonts.
+  const [fontsLoaded, fontError] = useFonts({
+    Exo2_400Regular,
+    Exo2_500Medium,
+    Exo2_600SemiBold,
+    Exo2_700Bold,
+    Exo2_800ExtraBold,
+    KantumruyPro_400Regular,
+    KantumruyPro_500Medium,
+    KantumruyPro_600SemiBold,
+    KantumruyPro_700Bold,
+  });
+  const fontsReady = fontsLoaded || fontError != null;
   const scheme = useColorScheme();
   const theme = useTheme();
 
-  // Keep the splash screen up until the stored session has been restored.
+  // Keep the splash screen up until the stored session and the fonts are ready.
+  const ready = profile !== undefined && fontsReady;
   useEffect(() => {
-    if (profile !== undefined) SplashScreen.hideAsync();
-  }, [profile]);
+    if (ready) SplashScreen.hideAsync();
+  }, [ready]);
 
-  if (profile === undefined) return null;
+  if (!ready) return null;
   const signedIn = profile !== null;
 
   const base = scheme === 'dark' ? DarkTheme : DefaultTheme;

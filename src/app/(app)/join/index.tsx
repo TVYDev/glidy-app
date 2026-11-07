@@ -1,5 +1,6 @@
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { router } from 'expo-router';
+import { ScanLine } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
@@ -8,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
 import { Radius, Spacing } from '@/constants/theme';
+import { useI18n } from '@/i18n';
 
 /** Pulls the group code out of a scanned QR value: a glidyapp://join/CODE link or a bare code. */
 function parseCode(value: string): string | null {
@@ -16,6 +18,7 @@ function parseCode(value: string): string | null {
 }
 
 export default function JoinScreen() {
+  const { t } = useI18n();
   const [code, setCode] = useState('');
   const [scanning, setScanning] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
@@ -45,13 +48,13 @@ export default function JoinScreen() {
   return (
     <Screen scroll edges={['left', 'right', 'bottom']}>
       <ThemedText type="small" themeColor="textSecondary">
-        Enter the 6-character code from your group leader, or scan their QR code.
+        {t('join.intro')}
       </ThemedText>
 
       <TextField
-        label="Group code"
+        label={t('join.code')}
         value={code}
-        onChangeText={(t) => setCode(t.toUpperCase())}
+        onChangeText={(text) => setCode(text.toUpperCase())}
         autoCapitalize="characters"
         autoCorrect={false}
         maxLength={6}
@@ -59,7 +62,7 @@ export default function JoinScreen() {
         returnKeyType="go"
         onSubmitEditing={() => code.length >= 4 && go(code)}
       />
-      <Button label="Continue" onPress={() => go(code)} disabled={code.length < 4} />
+      <Button label={t('common.continue')} onPress={() => go(code)} disabled={code.length < 4} />
 
       {scanning ? (
         <View style={styles.camera}>
@@ -71,21 +74,16 @@ export default function JoinScreen() {
           />
         </View>
       ) : (
-        <Button
-          label="Scan QR code"
-          variant="accent"
-          icon={{ sf: 'qrcode.viewfinder', md: 'qr_code_scanner' }}
-          onPress={startScan}
-        />
+        <Button label={t('join.scan')} variant="ink" icon={ScanLine} onPress={startScan} />
       )}
 
       {permission && !permission.granted && !permission.canAskAgain && (
-        <Button label="Allow camera in Settings" variant="ghost" compact onPress={() => Linking.openSettings()} />
+        <Button label={t('join.allowCamera')} variant="ghost" compact onPress={() => Linking.openSettings()} />
       )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  camera: { height: 320, borderRadius: Radius.md, overflow: 'hidden', marginTop: Spacing.two },
+  camera: { height: 320, borderRadius: Radius.lg, overflow: 'hidden', marginTop: Spacing.two },
 });

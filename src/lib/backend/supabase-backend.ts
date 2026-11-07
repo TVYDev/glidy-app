@@ -1,5 +1,6 @@
 import type { User } from '@supabase/supabase-js';
 
+import { t } from '@/i18n';
 import { getSupabase } from '@/lib/backend/supabase-client';
 import type {
   Backend,
@@ -67,7 +68,7 @@ const toSavedRoute = (r: SavedRouteRow): SavedRoute => ({
 const toProfile = (user: User): Profile => ({
   id: user.id,
   displayName:
-    (user.user_metadata?.display_name as string | undefined) || user.email?.split('@')[0] || 'Traveller',
+    (user.user_metadata?.display_name as string | undefined) || user.email?.split('@')[0] || t('common.traveller'),
 });
 
 function fail(error: { message: string } | null): never | void {
@@ -80,7 +81,7 @@ export function createSupabaseBackend(): Backend {
   async function requireUserId(): Promise<string> {
     const { data } = await supabase.auth.getSession();
     const id = data.session?.user.id;
-    if (!id) throw new Error('You need to sign in first.');
+    if (!id) throw new Error(t('err.signInFirst'));
     return id;
   }
 
@@ -106,7 +107,7 @@ export function createSupabaseBackend(): Backend {
         });
         fail(error);
         if (!data.session || !data.user) {
-          throw new Error('Check your email to confirm your account, then log in.');
+          throw new Error(t('err.confirmEmail'));
         }
         return toProfile(data.user);
       },
@@ -123,7 +124,7 @@ export function createSupabaseBackend(): Backend {
         const name = displayName.trim();
         const { data, error } = await supabase.auth.updateUser({ data: { display_name: name } });
         fail(error);
-        if (!data.user) throw new Error('Could not update your profile.');
+        if (!data.user) throw new Error(t('err.profileUpdate'));
         await supabase.from('profiles').update({ display_name: name }).eq('id', data.user.id);
         return toProfile(data.user);
       },
@@ -148,13 +149,13 @@ export function createSupabaseBackend(): Backend {
           if (!error) return toSession(data as SessionRow);
           if (error.code !== '23505') throw new Error(error.message);
         }
-        throw new Error('Could not create a session. Please try again.');
+        throw new Error(t('err.createSession'));
       },
       async join(code) {
         const { data, error } = await supabase.rpc('join_session', { p_code: code.trim().toUpperCase() });
         fail(error);
         const row = (Array.isArray(data) ? data[0] : data) as SessionRow | null;
-        if (!row) throw new Error('No active group found for that code.');
+        if (!row) throw new Error(t('err.noGroupForCode'));
         return toSession(row);
       },
       async get(id) {
@@ -204,7 +205,7 @@ export function createSupabaseBackend(): Backend {
         return (data as unknown as Row[]).map(
           (r): Member => ({
             userId: r.user_id,
-            displayName: r.profiles?.display_name ?? 'Traveller',
+            displayName: r.profiles?.display_name ?? t('common.traveller'),
             joinedAt: r.joined_at,
           }),
         );
@@ -213,22 +214,38 @@ export function createSupabaseBackend(): Backend {
         const channel = supabase.channel(`session:${session.id}`, {
           config: { private: true, broadcast: { self: false } },
         });
+        let stopped = false;
         events.onStatus?.('connecting');
+
         channel
           .on('broadcast', { event: 'location' }, ({ payload }) => {
             const location = payload as MemberLocation;
             if (location.userId !== me.id) events.onLocation(location);
           })
           .on('broadcast', { event: 'session' }, () => events.onSessionChanged())
-          .on('broadcast', { event: 'members' }, () => events.onMembersChanged())
-          .subscribe((status) => {
-            if (status === 'SUBSCRIBED') {
-              events.onStatus?.('live');
-              // Tell everyone already in the channel that the member list may have changed.
-              void channel.send({ type: 'broadcast', event: 'members', payload: {} });
-            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-              events.onStatus?.('offline');
-            }
+          .on('broadcast', { event: 'members' }, () => events.onMembersChanged());
+
+        // Private channels are authorised with the user's JWT, so make sure the realtime
+        // socket has it before joining; otherwise the join is rejected and the channel closes.
+        void supabase.realtime
+          .setAuth()
+          .catch(() => undefined)
+          .then(() => {
+            if (stopped) return;
+            channel.subscribe((status, error) => {
+              // Leaving the screen closes the channel, which reports CLOSED: that is not an outage.
+              if (stopped) return;
+              if (__DEV__ && status !== 'SUBSCRIBED') {
+                console.warn(`[realtime] session:${session.id} ${status}`, error?.message ?? '');
+              }
+              if (status === 'SUBSCRIBED') {
+                events.onStatus?.('live');
+                // Tell everyone already in the channel that the member list may have changed.
+                void channel.send({ type: 'broadcast', event: 'members', payload: {} });
+              } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+                events.onStatus?.('offline');
+              }
+            });
           });
 
         const send = (event: string, payload: unknown) => {
@@ -239,6 +256,7 @@ export function createSupabaseBackend(): Backend {
           notifySessionChanged: () => send('session', {}),
           notifyMembersChanged: () => send('members', {}),
           stop: () => {
+            stopped = true;
             void supabase.removeChannel(channel);
           },
         };

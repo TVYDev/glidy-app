@@ -1,23 +1,24 @@
 import { router } from 'expo-router';
+import { MapPin } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
 import { PlaceSearch } from '@/components/session/place-search';
+import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
+import { Card, IconBadge } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
-import { Radius, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Spacing } from '@/constants/theme';
+import { useI18n } from '@/i18n';
 import { backend } from '@/lib/backend';
 import { getOrigin } from '@/lib/location';
 import { getRoute } from '@/lib/mapbox-api';
 import type { Place } from '@/lib/types';
 
 export default function CreateSessionScreen() {
-  const theme = useTheme();
-  const [name, setName] = useState('Road trip');
+  const { t } = useI18n();
+  const [name, setName] = useState(t('create.defaultName'));
   const [destination, setDestination] = useState<Place | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +35,7 @@ export default function CreateSessionScreen() {
       const session = await backend.sessions.create({ name, destination, route });
       router.replace({ pathname: '/session/[id]', params: { id: session.id } });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not start the group.');
+      setError(e instanceof Error ? e.message : t('create.error'));
       setLoading(false);
     }
   }
@@ -42,19 +43,18 @@ export default function CreateSessionScreen() {
   return (
     <Screen scroll edges={['left', 'right', 'bottom']}>
       <ThemedText type="small" themeColor="textSecondary">
-        You will be the group leader: you pick the route and everyone follows. You can invite friends after the group
-        starts.
+        {t('create.intro')}
       </ThemedText>
 
-      <TextField label="Group name" value={name} onChangeText={setName} />
+      <TextField label={t('create.groupName')} value={name} onChangeText={setName} />
 
       {destination ? (
         <View style={styles.field}>
           <ThemedText type="smallBold" themeColor="textSecondary">
-            Destination
+            {t('create.destination')}
           </ThemedText>
-          <View style={[styles.chosen, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-            <Icon sf="mappin.circle.fill" md="location_on" size={24} color="primary" />
+          <Card style={styles.chosen}>
+            <IconBadge icon={MapPin} size={40} />
             <View style={styles.chosenText}>
               <ThemedText type="smallBold">{destination.name}</ThemedText>
               {destination.subtitle ? (
@@ -63,11 +63,11 @@ export default function CreateSessionScreen() {
                 </ThemedText>
               ) : null}
             </View>
-            <Button label="Change" variant="ghost" compact onPress={() => setDestination(null)} />
-          </View>
+            <Button label={t('create.change')} variant="ghost" compact onPress={() => setDestination(null)} />
+          </Card>
         </View>
       ) : (
-        <PlaceSearch label="Destination (optional)" onSelect={setDestination} />
+        <PlaceSearch label={t('create.destinationOptional')} onSelect={setDestination} />
       )}
 
       {error && (
@@ -76,10 +76,10 @@ export default function CreateSessionScreen() {
         </ThemedText>
       )}
 
-      <Button label="Start group" onPress={start} loading={loading} disabled={name.trim().length === 0} />
+      <Button label={t('create.start')} onPress={start} loading={loading} disabled={name.trim().length === 0} />
       {!destination && (
         <ThemedText type="small" themeColor="textSecondary">
-          No destination yet? You can set or change it from the map at any time.
+          {t('create.hint')}
         </ThemedText>
       )}
     </Screen>
@@ -88,13 +88,6 @@ export default function CreateSessionScreen() {
 
 const styles = StyleSheet.create({
   field: { gap: Spacing.two },
-  chosen: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    padding: Spacing.three,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-  },
+  chosen: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   chosenText: { flex: 1 },
 });

@@ -1,4 +1,5 @@
 import { distanceBetween, toLngLat } from '@/lib/geo';
+import { t } from '@/i18n';
 import type { Coord, Place, Route } from '@/lib/types';
 
 /** Public Mapbox token. When missing, the app uses demo places and straight-line routes. */
@@ -41,7 +42,7 @@ export async function searchPlaces(query: string, near?: Coord | null): Promise<
   const params = new URLSearchParams({ q, limit: '6', access_token: MAPBOX_TOKEN });
   if (near) params.set('proximity', `${near.longitude},${near.latitude}`);
   const res = await fetch(`https://api.mapbox.com/search/geocode/v6/forward?${params}`);
-  if (!res.ok) throw new Error('Place search failed. Check your connection and try again.');
+  if (!res.ok) throw new Error(t('err.placeSearch'));
   const json = (await res.json()) as GeocodeResponse;
   return (json.features ?? []).map((f) => ({
     name: f.properties.name,
@@ -52,6 +53,7 @@ export async function searchPlaces(query: string, near?: Coord | null): Promise<
 
 type DirectionsResponse = {
   code?: string;
+  message?: string;
   routes?: {
     distance: number;
     duration: number;
@@ -59,7 +61,7 @@ type DirectionsResponse = {
     legs: {
       steps: {
         distance: number;
-        maneuver: { instruction: string; location: [number, number] };
+        maneuver: { instruction: string; location: [number, number]; type?: string; modifier?: string };
       }[];
     }[];
   }[];
@@ -78,10 +80,24 @@ export async function getRoute(from: Coord, to: Coord, profile: RouteProfile = '
     access_token: MAPBOX_TOKEN,
   });
   const res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/${profile}/${coords}?${params}`);
-  if (!res.ok) throw new Error('Could not get directions. Check your connection and try again.');
-  const json = (await res.json()) as DirectionsResponse;
+  const json = (await res.json().catch(() => null)) as DirectionsResponse | null;
+
+  if (!res.ok || !json) {
+    // Mapbox answers with a JSON body explaining the error: report the real cause.
+    if (res.status === 422 && /distance/i.test(json?.message ?? '')) {
+      throw new Error(t('err.tooFar'));
+    }
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(t('err.tokenRejected'));
+    }
+    if (res.status === 429) throw new Error(t('err.rateLimited'));
+    throw new Error(t('err.directionsHttp', { status: res.status }));
+  }
+
   const route = json.routes?.[0];
-  if (!route) throw new Error('No route found between those places.');
+  if (!route) {
+    throw new Error(t('err.noRoute'));
+  }
 
   return {
     geometry: route.geometry.coordinates,
@@ -92,6 +108,8 @@ export async function getRoute(from: Coord, to: Coord, profile: RouteProfile = '
         instruction: s.maneuver.instruction,
         distance: s.distance,
         location: { longitude: s.maneuver.location[0], latitude: s.maneuver.location[1] },
+        type: s.maneuver.type,
+        modifier: s.maneuver.modifier,
       })),
     ),
   };
@@ -116,8 +134,8 @@ function straightLineRoute(from: Coord, to: Coord): Route {
     distance,
     duration: distance / (60 / 3.6),
     steps: [
-      { instruction: 'Head towards the destination', distance, location: from },
-      { instruction: 'You have arrived', distance: 0, location: to },
+      { instruction: t('nav.head'), distance, location: from },
+      { instruction: t('nav.arrived'), distance: 0, location: to },
     ],
   };
 }

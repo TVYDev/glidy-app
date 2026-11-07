@@ -3,8 +3,11 @@ import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/ui/avatar';
+import { MapPin } from 'lucide-react-native';
+
 import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing } from '@/constants/theme';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/hooks/use-theme';
 import { boundsOf, toLngLat } from '@/lib/geo';
 import type { LiveMapProps } from '@/components/map/types';
@@ -16,6 +19,7 @@ import type { LiveMapProps } from '@/components/map/types';
  */
 export function SchematicMap({ route, destination, me, others, insets }: LiveMapProps) {
   const theme = useTheme();
+  const { t } = useI18n();
   const [size, setSize] = useState({ width: 0, height: 0 });
 
   const onLayout = (e: LayoutChangeEvent) => setSize(e.nativeEvent.layout);
@@ -52,7 +56,7 @@ export function SchematicMap({ route, destination, me, others, insets }: LiveMap
         <>
           {dots.map(([lng, lat], i) => {
             const p = project([lng, lat]);
-            return <View key={i} style={[styles.dot, { left: p.x - 3, top: p.y - 3, backgroundColor: theme.primary }]} />;
+            return <View key={i} style={[styles.dot, { left: p.x - 3, top: p.y - 3, backgroundColor: theme.ink }]} />;
           })}
           {destination && <Pin point={project(toLngLat(destination.coord))} />}
           {others.map((o) => {
@@ -69,7 +73,7 @@ export function SchematicMap({ route, destination, me, others, insets }: LiveMap
                 styles.marker,
                 { left: project(toLngLat(me.coord)).x - 20, top: project(toLngLat(me.coord)).y - 20 },
               ]}>
-              <Avatar userId={me.userId} name={me.displayName} size={40} ring={theme.accent} />
+              <Avatar userId={me.userId} name={me.displayName} size={40} ring={theme.primary} />
             </View>
           )}
         </>
@@ -77,7 +81,7 @@ export function SchematicMap({ route, destination, me, others, insets }: LiveMap
       {size.height > 400 && (
         <View style={[styles.notice, { backgroundColor: theme.backgroundElement, bottom: insets.bottom + Spacing.two }]}>
           <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-            Schematic view. Add a Mapbox token to see the real map.
+            {t('map.schematic')}
           </ThemedText>
         </View>
       )}
@@ -87,8 +91,8 @@ export function SchematicMap({ route, destination, me, others, insets }: LiveMap
 
 function Pin({ point }: { point: { x: number; y: number } }) {
   return (
-    <View style={[styles.marker, { left: point.x - 14, top: point.y - 28 }]}>
-      <Icon sf="mappin.circle.fill" md="location_on" size={28} color="#E0551E" />
+    <View style={[styles.marker, { left: point.x - 17, top: point.y - 34 }]}>
+      <Icon icon={MapPin} size={34} color="ink" fill="#EFB708" />
     </View>
   );
 }

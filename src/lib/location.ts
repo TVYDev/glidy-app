@@ -21,7 +21,8 @@ export async function getOrigin(): Promise<{ coord: Coord; isFallback: boolean }
     const permission = await Location.requestForegroundPermissionsAsync();
     if (!permission.granted) return { coord: DEFAULT_ORIGIN, isFallback: true };
 
-    const last = await withTimeout(Location.getLastKnownPositionAsync(), 3000);
+    // Ignore cached positions older than two minutes: a stale start point gives a wrong route.
+    const last = await withTimeout(Location.getLastKnownPositionAsync({ maxAge: 120_000 }), 3000);
     if (last) return { coord: toCoord(last), isFallback: false };
 
     const current = await withTimeout(

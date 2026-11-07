@@ -1,12 +1,14 @@
 import { router, useFocusEffect } from 'expo-router';
+import { Bookmark, Plus, Route } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
-import { BottomTabInset, Radius, Spacing } from '@/constants/theme';
+import { Card, IconBadge, ListRow } from '@/components/ui/card';
+import { BottomTabInset, Spacing } from '@/constants/theme';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/hooks/use-theme';
 import { backend } from '@/lib/backend';
 import { formatDistance, formatDuration } from '@/lib/geo';
@@ -14,6 +16,7 @@ import type { SavedRoute } from '@/lib/types';
 
 export default function RoutesScreen() {
   const theme = useTheme();
+  const { t } = useI18n();
   const [routes, setRoutes] = useState<SavedRoute[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -23,9 +26,9 @@ export default function RoutesScreen() {
       setRoutes(await backend.routes.list());
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load your routes.');
+      setError(e instanceof Error ? e.message : t('routes.loadError'));
     }
-  }, []);
+  }, [t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -44,16 +47,12 @@ export default function RoutesScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />}>
-        <ThemedText type="subtitle">Saved routes</ThemedText>
+        <ThemedText type="subtitle">{t('routes.title')}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          Keep routes for future trips, reverse them for the trip home, and share them with friends.
+          {t('routes.subtitle')}
         </ThemedText>
 
-        <Button
-          label="Plan a route"
-          icon={{ sf: 'plus', md: 'add' }}
-          onPress={() => router.push('/routes/new')}
-        />
+        <Button label={t('routes.plan')} icon={Plus} onPress={() => router.push('/routes/new')} />
 
         {error && (
           <ThemedText type="small" themeColor="danger">
@@ -62,36 +61,25 @@ export default function RoutesScreen() {
         )}
 
         {routes?.length === 0 && (
-          <View style={[styles.empty, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-            <Icon sf="bookmark.fill" md="bookmark" size={32} color="textSecondary" />
-            <ThemedText type="smallBold">Nothing saved yet</ThemedText>
+          <Card style={styles.empty}>
+            <IconBadge icon={Bookmark} size={52} tone="soft" />
+            <ThemedText type="smallBold">{t('routes.emptyTitle')}</ThemedText>
             <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
-              Plan a route here, or save the route of a group trip from its map.
+              {t('routes.emptyBody')}
             </ThemedText>
-          </View>
+          </Card>
         )}
 
         {routes?.map((r) => (
-          <Pressable
+          <ListRow
             key={r.id}
+            icon={Route}
+            title={r.name}
+            subtitle={`${r.origin ? `${r.origin.name} → ` : ''}${r.destination.name} · ${formatDistance(
+              r.route.distance,
+            )} · ${formatDuration(r.route.duration)}${r.isShared ? ` · ${t('routes.shared')}` : ''}`}
             onPress={() => router.push({ pathname: '/routes/[id]', params: { id: r.id } })}
-            style={({ pressed }) => [
-              styles.card,
-              { backgroundColor: theme.backgroundElement, borderColor: theme.border, opacity: pressed ? 0.8 : 1 },
-            ]}>
-            <View style={[styles.cardIcon, { backgroundColor: theme.accent }]}>
-              <Icon sf="signpost.right.fill" md="signpost" size={22} color="onAccent" />
-            </View>
-            <View style={styles.cardText}>
-              <ThemedText type="smallBold">{r.name}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                {r.origin ? `${r.origin.name} → ` : ''}
-                {r.destination.name} · {formatDistance(r.route.distance)} · {formatDuration(r.route.duration)}
-                {r.isShared ? ' · Shared' : ''}
-              </ThemedText>
-            </View>
-            <Icon sf="chevron.right" md="chevron_right" size={18} color="textSecondary" />
-          </Pressable>
+          />
         ))}
       </ScrollView>
     </SafeAreaView>
@@ -100,17 +88,7 @@ export default function RoutesScreen() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  content: { padding: Spacing.three, gap: Spacing.three, paddingBottom: BottomTabInset + Spacing.five },
-  empty: { alignItems: 'center', gap: Spacing.two, padding: Spacing.four, borderRadius: Radius.md, borderWidth: 1 },
+  content: { padding: Spacing.three, gap: Spacing.three, paddingBottom: BottomTabInset + Spacing.four },
+  empty: { alignItems: 'center', gap: Spacing.two, padding: Spacing.four },
   emptyText: { textAlign: 'center' },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    padding: Spacing.three,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-  },
-  cardIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  cardText: { flex: 1 },
 });

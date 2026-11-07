@@ -1,4 +1,5 @@
 import { DEFAULT_ORIGIN } from '@/lib/mapbox-api';
+import { t } from '@/i18n';
 import { storage } from '@/lib/storage';
 import type {
   Backend,
@@ -32,9 +33,9 @@ type State = {
 const KEY = 'glidy.mock.v1';
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-const DEMO_TRAVELLERS: Profile[] = [
-  { id: 'demo-alex', displayName: 'Alex (demo)' },
-  { id: 'demo-sam', displayName: 'Sam (demo)' },
+const demoTravellers = (): Profile[] => [
+  { id: 'demo-alex', displayName: `Alex ${t('common.demoSuffix')}` },
+  { id: 'demo-sam', displayName: `Sam ${t('common.demoSuffix')}` },
 ];
 
 const load = (): State =>
@@ -55,13 +56,13 @@ const emitAuth = (state: State) => {
 
 function requireUser(state: State): StoredUser {
   const user = state.users.find((u) => u.id === state.currentUserId);
-  if (!user) throw new Error('You need to sign in first.');
+  if (!user) throw new Error(t('err.signInFirst'));
   return user;
 }
 
 function findSession(state: State, id: string): Session {
   const session = state.sessions.find((s) => s.id === id);
-  if (!session) throw new Error('Session not found.');
+  if (!session) throw new Error(t('err.sessionNotFound'));
   return session;
 }
 
@@ -84,7 +85,7 @@ export function createMockBackend(): Backend {
         const state = load();
         const normalized = email.trim().toLowerCase();
         if (state.users.some((u) => u.email === normalized)) {
-          throw new Error('An account with this email already exists.');
+          throw new Error(t('err.emailExists'));
         }
         const user: StoredUser = { id: uid(), email: normalized, password, displayName: displayName.trim() };
         state.users.push(user);
@@ -97,7 +98,7 @@ export function createMockBackend(): Backend {
         const state = load();
         const normalized = email.trim().toLowerCase();
         const user = state.users.find((u) => u.email === normalized && u.password === password);
-        if (!user) throw new Error('Wrong email or password.');
+        if (!user) throw new Error(t('err.wrongCredentials'));
         state.currentUserId = user.id;
         save(state);
         emitAuth(state);
@@ -144,7 +145,7 @@ export function createMockBackend(): Backend {
         const state = load();
         const user = requireUser(state);
         const session = state.sessions.find((s) => s.code === code.trim().toUpperCase() && s.status === 'active');
-        if (!session) throw new Error('No active group found for that code.');
+        if (!session) throw new Error(t('err.noGroupForCode'));
         if (!state.members.some((m) => m.sessionId === session.id && m.userId === user.id)) {
           state.members.push({ sessionId: session.id, userId: user.id, joinedAt: new Date().toISOString() });
           save(state);
@@ -166,7 +167,7 @@ export function createMockBackend(): Backend {
         const state = load();
         const user = requireUser(state);
         const session = findSession(state, id);
-        if (session.leaderId !== user.id) throw new Error('Only the group leader can change the route.');
+        if (session.leaderId !== user.id) throw new Error(t('err.onlyLeaderRoute'));
         session.destination = patch.destination;
         session.route = patch.route;
         save(state);
@@ -176,7 +177,7 @@ export function createMockBackend(): Backend {
         const state = load();
         const user = requireUser(state);
         const session = findSession(state, id);
-        if (session.leaderId !== user.id) throw new Error('Only the group leader can end the session.');
+        if (session.leaderId !== user.id) throw new Error(t('err.onlyLeaderEnd'));
         session.status = 'ended';
         save(state);
       },
@@ -192,10 +193,10 @@ export function createMockBackend(): Backend {
           .filter((m) => m.sessionId === id)
           .map((m) => ({
             userId: m.userId,
-            displayName: state.users.find((u) => u.id === m.userId)?.displayName ?? 'Traveller',
+            displayName: state.users.find((u) => u.id === m.userId)?.displayName ?? t('common.traveller'),
             joinedAt: m.joinedAt,
           }));
-        const demo: Member[] = DEMO_TRAVELLERS.map((t) => ({
+        const demo: Member[] = demoTravellers().map((t) => ({
           userId: t.id,
           displayName: t.displayName,
           joinedAt: new Date().toISOString(),
@@ -209,7 +210,7 @@ export function createMockBackend(): Backend {
           tick += 1;
           // Re-read the session so the demo travellers follow the leader's latest route.
           const current = load().sessions.find((s) => s.id === session.id) ?? session;
-          DEMO_TRAVELLERS.forEach((traveller, index) => {
+          demoTravellers().forEach((traveller, index) => {
             events.onLocation(simulate(traveller, index, tick, current));
           });
         }, 3000);
@@ -234,7 +235,7 @@ export function createMockBackend(): Backend {
       },
       async get(id) {
         const route = load().routes.find((r) => r.id === id);
-        if (!route) throw new Error('Route not found.');
+        if (!route) throw new Error(t('err.routeNotFound'));
         return route;
       },
       async save(input: SaveRouteInput) {
@@ -257,7 +258,7 @@ export function createMockBackend(): Backend {
       async setShared(id, isShared) {
         const state = load();
         const route = state.routes.find((r) => r.id === id);
-        if (!route) throw new Error('Route not found.');
+        if (!route) throw new Error(t('err.routeNotFound'));
         route.isShared = isShared;
         save(state);
         return route;

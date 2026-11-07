@@ -1,19 +1,20 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { Users } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
+import { IconBadge } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { useI18n } from '@/i18n';
 import { backend } from '@/lib/backend';
 
 /** Confirmation step shared by manual entry, QR scans and glidyapp://join/CODE links. */
 export default function JoinCodeScreen() {
   const { code } = useLocalSearchParams<{ code: string }>();
-  const theme = useTheme();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,7 +25,7 @@ export default function JoinCodeScreen() {
       const session = await backend.sessions.join(code);
       router.replace({ pathname: '/session/[id]', params: { id: session.id } });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not join the group.');
+      setError(e instanceof Error ? e.message : t('join.error'));
       setLoading(false);
     }
   }
@@ -32,13 +33,12 @@ export default function JoinCodeScreen() {
   return (
     <Screen edges={['left', 'right', 'bottom']} contentStyle={styles.content}>
       <View style={styles.hero}>
-        <View style={[styles.icon, { backgroundColor: theme.accent }]}>
-          <Icon sf="person.3.fill" md="groups" size={32} color="onAccent" />
-        </View>
-        <ThemedText type="subtitle">Join group {code}?</ThemedText>
+        <IconBadge icon={Users} size={80} />
+        <ThemedText type="subtitle" style={styles.center}>
+          {t('join.confirmTitle', { code })}
+        </ThemedText>
         <ThemedText themeColor="textSecondary" style={styles.center}>
-          Your name and live location will be visible to everyone in the group while you have it open. You can pause
-          sharing or leave at any time.
+          {t('join.confirmBody')}
         </ThemedText>
       </View>
 
@@ -49,8 +49,8 @@ export default function JoinCodeScreen() {
       )}
 
       <View style={styles.actions}>
-        <Button label="Join group" onPress={join} loading={loading} />
-        <Button label="Cancel" variant="ghost" onPress={() => router.back()} />
+        <Button label={t('join.joinGroup')} onPress={join} loading={loading} />
+        <Button label={t('common.cancel')} variant="ghost" onPress={() => router.back()} />
       </View>
     </Screen>
   );
@@ -59,7 +59,6 @@ export default function JoinCodeScreen() {
 const styles = StyleSheet.create({
   content: { flex: 1, justifyContent: 'space-between', padding: Spacing.four },
   hero: { alignItems: 'center', gap: Spacing.three, paddingTop: Spacing.five },
-  icon: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
   center: { textAlign: 'center' },
   actions: { gap: Spacing.two },
 });

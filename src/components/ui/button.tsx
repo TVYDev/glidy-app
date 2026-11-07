@@ -1,3 +1,4 @@
+import type { LucideIcon } from 'lucide-react-native';
 import { ActivityIndicator, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
@@ -5,7 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing, type ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-type Variant = 'primary' | 'secondary' | 'accent' | 'ghost' | 'danger';
+type Variant = 'primary' | 'secondary' | 'ink' | 'ghost' | 'danger';
 
 type ButtonProps = {
   label: string;
@@ -13,17 +14,17 @@ type ButtonProps = {
   variant?: Variant;
   loading?: boolean;
   disabled?: boolean;
-  /** Optional leading icon. */
-  icon?: { sf: Parameters<typeof Icon>[0]['sf']; md: Parameters<typeof Icon>[0]['md'] };
+  /** Optional leading Lucide icon. */
+  icon?: LucideIcon;
   compact?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
-const VARIANTS: Record<Variant, { bg: ThemeColor | 'transparent'; fg: ThemeColor }> = {
+const VARIANTS: Record<Variant, { bg: ThemeColor | 'transparent'; fg: ThemeColor; border?: boolean }> = {
   primary: { bg: 'primary', fg: 'onPrimary' },
-  secondary: { bg: 'backgroundElement', fg: 'text' },
-  accent: { bg: 'accent', fg: 'onAccent' },
-  ghost: { bg: 'transparent', fg: 'primary' },
+  secondary: { bg: 'backgroundElement', fg: 'text', border: true },
+  ink: { bg: 'ink', fg: 'onInk' },
+  ghost: { bg: 'transparent', fg: 'primaryDark' },
   danger: { bg: 'transparent', fg: 'danger' },
 };
 
@@ -38,12 +39,13 @@ export function Button({
   style,
 }: ButtonProps) {
   const theme = useTheme();
-  const { bg, fg } = VARIANTS[variant];
+  const { bg, fg, border } = VARIANTS[variant];
   const inactive = disabled || loading;
 
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
       accessibilityState={{ disabled: !!inactive, busy: !!loading }}
       disabled={inactive}
       onPress={onPress}
@@ -51,15 +53,15 @@ export function Button({
         styles.base,
         compact && styles.compact,
         { backgroundColor: bg === 'transparent' ? 'transparent' : theme[bg] },
-        variant === 'secondary' && { borderWidth: 1, borderColor: theme.border },
-        (pressed || inactive) && { opacity: inactive ? 0.5 : 0.8 },
+        border && { borderWidth: 1, borderColor: theme.border },
+        (pressed || inactive) && { opacity: inactive ? 0.5 : 0.85 },
         style,
       ]}>
       {loading ? (
         <ActivityIndicator color={theme[fg]} />
       ) : (
         <>
-          {icon && <Icon sf={icon.sf} md={icon.md} size={compact ? 18 : 20} color={fg} />}
+          {icon && <Icon icon={icon} size={compact ? 18 : 20} color={fg} />}
           <ThemedText type="smallBold" themeColor={fg} style={compact ? undefined : styles.label}>
             {label}
           </ThemedText>
@@ -71,7 +73,7 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 54,
+    minHeight: 56,
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.four,
     flexDirection: 'row',
@@ -80,10 +82,11 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   compact: {
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: Spacing.three,
   },
   label: {
     fontSize: 16,
+    lineHeight: 22,
   },
 });

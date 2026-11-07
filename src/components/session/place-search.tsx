@@ -1,10 +1,12 @@
+import { MapPin } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Icon } from '@/components/ui/icon';
+import { IconBadge } from '@/components/ui/card';
 import { TextField } from '@/components/ui/text-field';
 import { Radius, Spacing } from '@/constants/theme';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/hooks/use-theme';
 import { searchPlaces } from '@/lib/mapbox-api';
 import type { Coord, Place } from '@/lib/types';
@@ -18,8 +20,9 @@ type PlaceSearchProps = {
 };
 
 /** Debounced destination search with a tappable result list. */
-export function PlaceSearch({ onSelect, label, placeholder = 'Search for a place', near }: PlaceSearchProps) {
+export function PlaceSearch({ onSelect, label, placeholder, near }: PlaceSearchProps) {
   const theme = useTheme();
+  const { t } = useI18n();
   const [query, setQuery] = useState('');
   // The outcome of the most recent finished search, tagged with the query it answers.
   const [outcome, setOutcome] = useState<{ q: string; places: Place[]; error: string | null } | null>(null);
@@ -33,17 +36,17 @@ export function PlaceSearch({ onSelect, label, placeholder = 'Search for a place
     const timer = setTimeout(() => {
       searchPlaces(q, near)
         .then((places) => {
-          if (!cancelled) setOutcome({ q, places, error: places.length === 0 ? 'No places found.' : null });
+          if (!cancelled) setOutcome({ q, places, error: places.length === 0 ? t('search.none') : null });
         })
         .catch((e: unknown) => {
-          if (!cancelled) setOutcome({ q, places: [], error: e instanceof Error ? e.message : 'Search failed.' });
+          if (!cancelled) setOutcome({ q, places: [], error: e instanceof Error ? e.message : t('search.failed') });
         });
     }, 350);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [q, active, near]);
+  }, [q, active, near, t]);
 
   // Everything below is derived: no state is reset inside an effect.
   const current = active && outcome?.q === q ? outcome : null;
@@ -57,11 +60,11 @@ export function PlaceSearch({ onSelect, label, placeholder = 'Search for a place
         label={label}
         value={query}
         onChangeText={setQuery}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t('search.placeholder')}
         autoCorrect={false}
         returnKeyType="search"
       />
-      {loading && <ActivityIndicator color={theme.primary} />}
+      {loading && <ActivityIndicator color={theme.primaryDark} />}
       {shownError && (
         <ThemedText type="small" themeColor="textSecondary">
           {shownError}
@@ -73,9 +76,9 @@ export function PlaceSearch({ onSelect, label, placeholder = 'Search for a place
           onPress={() => onSelect(place)}
           style={({ pressed }) => [
             styles.row,
-            { backgroundColor: theme.backgroundElement, borderColor: theme.border, opacity: pressed ? 0.7 : 1 },
+            { backgroundColor: theme.backgroundElement, borderColor: theme.border, opacity: pressed ? 0.8 : 1 },
           ]}>
-          <Icon sf="mappin.circle.fill" md="location_on" size={24} color="primary" />
+          <IconBadge icon={MapPin} size={40} tone="soft" />
           <View style={styles.rowText}>
             <ThemedText type="smallBold">{place.name}</ThemedText>
             {place.subtitle ? (
@@ -97,7 +100,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.three,
     padding: Spacing.three,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     borderWidth: 1,
   },
   rowText: { flex: 1 },

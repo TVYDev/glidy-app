@@ -1,13 +1,15 @@
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, fontFamilyFor } from '@/constants/theme';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/hooks/use-theme';
 
 type TextFieldProps = TextInputProps & { label?: string };
 
 export function TextField({ label, style, ...rest }: TextFieldProps) {
   const theme = useTheme();
+  const { language } = useI18n();
   return (
     <View style={styles.wrapper}>
       {label ? (
@@ -20,7 +22,12 @@ export function TextField({ label, style, ...rest }: TextFieldProps) {
         selectionColor={theme.primary}
         style={[
           styles.input,
-          { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border },
+          {
+            backgroundColor: theme.backgroundElement,
+            color: theme.text,
+            borderColor: theme.border,
+            fontFamily: fontFamilyFor(language, 500),
+          },
           style,
         ]}
         {...rest}
@@ -32,7 +39,7 @@ export function TextField({ label, style, ...rest }: TextFieldProps) {
 const styles = StyleSheet.create({
   wrapper: { gap: Spacing.two },
   input: {
-    minHeight: 54,
+    minHeight: 56,
     borderRadius: Radius.md,
     borderWidth: 1,
     paddingHorizontal: Spacing.three,

@@ -8,6 +8,10 @@ export type RouteStep = {
   distance: number;
   /** Where the manoeuvre happens. */
   location: Coord;
+  /** Mapbox manoeuvre type (turn, merge, roundabout, arrive…). Missing on routes saved before this existed. */
+  type?: string;
+  /** Mapbox manoeuvre modifier (left, slight right, uturn…). */
+  modifier?: string;
 };
 
 export type Route = {
