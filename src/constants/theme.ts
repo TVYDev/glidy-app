@@ -1,6 +1,6 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://unistyl.es/), etc.
+ * Glidy design tokens. Greens are the brand colour, yellow is the accent used for
+ * highlights (selected states, badges), and surfaces are soft neutral cards.
  */
 
 import '@/global.css';
@@ -9,18 +9,34 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    text: '#10201A',
+    background: '#E4E7E3',
+    backgroundElement: '#F2F4F1',
+    backgroundSelected: '#D5DAD4',
+    textSecondary: '#5B6A62',
+    primary: '#2F7A4F',
+    primaryDark: '#1F5C3A',
+    onPrimary: '#FFFFFF',
+    accent: '#F4C430',
+    onAccent: '#1B1B12',
+    border: '#CBD1CA',
+    danger: '#C8402E',
+    tabBar: '#0E1511',
   },
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    text: '#F1F5F2',
+    background: '#0C120F',
+    backgroundElement: '#17201B',
+    backgroundSelected: '#223029',
+    textSecondary: '#9DB0A5',
+    primary: '#4C9F6B',
+    primaryDark: '#2F7A4F',
+    onPrimary: '#06120B',
+    accent: '#F4C430',
+    onAccent: '#1B1B12',
+    border: '#2B3A32',
+    danger: '#E8604C',
+    tabBar: '#050806',
   },
 } as const;
 
@@ -61,5 +77,13 @@ export const Spacing = {
   six: 64,
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
+export const Radius = {
+  sm: 12,
+  md: 20,
+  lg: 28,
+  pill: 999,
+} as const;
+
+/** Space to keep clear under scrolling content for the floating tab bar. */
+export const BottomTabInset = Platform.select({ ios: 96, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;

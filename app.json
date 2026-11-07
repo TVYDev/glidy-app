@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "glidy-app",
+    "name": "Glidy",
     "slug": "glidy-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -30,11 +30,27 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#2F7A4F",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      "expo-sqlite",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Glidy uses your location to share it with your group while you are in a session."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Glidy uses the camera to scan group invite QR codes.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      "@rnmapbox/maps"
     ],
     "experiments": {
       "typedRoutes": true,
