@@ -45,13 +45,19 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Glidy uses the camera to scan group invite QR codes.",
+          "cameraPermission": "Glidy uses the camera to scan group invite QR codes and to take your profile picture.",
           "microphonePermission": false,
           "recordAudioAndroid": false
         }
       ],
-      "@rnmapbox/maps",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Glidy uses your photos so you can choose a profile picture.",
+          "cameraPermission": "Glidy uses the camera to scan group invite QR codes and to take your profile picture."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

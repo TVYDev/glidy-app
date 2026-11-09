@@ -1,21 +1,23 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Maximize2, Share2, Trash, Undo2, Users } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Share, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, Share, StyleSheet, View } from 'react-native';
 
 import { LiveMap } from '@/components/map/live-map';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { useDialog } from '@/components/ui/dialog';
 import { Glass } from '@/components/ui/glass';
 import { Icon } from '@/components/ui/icon';
 import { Screen } from '@/components/ui/screen';
+import { StatStrip } from '@/components/ui/stat-strip';
 import { Radius, Spacing } from '@/constants/theme';
 import { useI18n } from '@/i18n';
 import { useTheme } from '@/hooks/use-theme';
 import { backend } from '@/lib/backend';
 import { formatDistance, formatDuration } from '@/lib/geo';
-import { getRoute } from '@/lib/mapbox-api';
+import { planRoutes } from '@/lib/maps-api';
 import type { SavedRoute } from '@/lib/types';
 import { useProfile } from '@/providers/auth-provider';
 
@@ -25,6 +27,7 @@ export default function SavedRouteScreen() {
   const theme = useTheme();
   const { t } = useI18n();
   const me = useProfile();
+  const dialog = useDialog();
   const [saved, setSaved] = useState<SavedRoute | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -74,7 +77,8 @@ export default function SavedRouteScreen() {
   const reverse = () =>
     run(async () => {
       if (!saved.origin) throw new Error(t('route.noStart'));
-      const back = await getRoute(saved.destination.coord, saved.origin.coord);
+      // The way home visits the same stops in the opposite order.
+      const [back] = await planRoutes(saved.destination.coord, [...(saved.route.stops ?? [])].reverse(), saved.origin);
       const created = await backend.routes.save({
         name: `${saved.name} ${t('route.tripHomeSuffix')}`,
         origin: saved.destination,
@@ -107,19 +111,20 @@ export default function SavedRouteScreen() {
       router.replace({ pathname: '/routes/[id]', params: { id: copy.id } });
     });
 
-  const confirmDelete = () =>
-    Alert.alert(t('route.deleteTitle'), t('route.deleteBody'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('route.delete'),
-        style: 'destructive',
-        onPress: () =>
-          run(async () => {
-            await backend.routes.remove(saved.id);
-            router.back();
-          }),
-      },
-    ]);
+  const confirmDelete = async () => {
+    const yes = await dialog.confirm({
+      title: t('route.deleteTitle'),
+      body: t('route.deleteBody'),
+      confirmLabel: t('route.delete'),
+      destructive: true,
+      icon: Trash,
+    });
+    if (!yes) return;
+    await run(async () => {
+      await backend.routes.remove(saved.id);
+      router.back();
+    });
+  };
 
   return (
     <Screen scroll scrollEnabled={!mapActive} edges={['left', 'right', 'bottom']}>
@@ -153,15 +158,23 @@ export default function SavedRouteScreen() {
       </View>
 
       <View style={styles.summary}>
-        <ThemedText type="subtitle" style={styles.title}>
+        <ThemedText type="display" numberOfLines={3}>
           {saved.destination.name}
         </ThemedText>
         <ThemedText themeColor="textSecondary">
-          {saved.origin ? `${t('route.from', { name: saved.origin.name })} · ` : ''}
-          {formatDistance(saved.route.distance)} · {formatDuration(saved.route.duration)}
-          {saved.isShared ? ` · ${t('routes.shared')}` : ''}
+          {saved.origin ? t('route.from', { name: saved.origin.name }) : ''}
+          {saved.origin && saved.isShared ? ' · ' : ''}
+          {saved.isShared ? t('routes.shared') : ''}
         </ThemedText>
       </View>
+
+      <StatStrip
+        stats={[
+          { value: formatDistance(saved.route.distance), label: t('stat.distance') },
+          { value: formatDuration(saved.route.duration), label: t('stat.time') },
+          { value: String(saved.route.steps.length), label: t('stat.steps') },
+        ]}
+      />
 
       {error && (
         <ThemedText type="small" themeColor="danger">
@@ -213,7 +226,6 @@ const styles = StyleSheet.create({
   maximize: { position: 'absolute', top: Spacing.two, right: Spacing.two },
   maximizeGlass: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   summary: { gap: Spacing.one },
-  title: { fontSize: 28, lineHeight: 36 },
   row: { flexDirection: 'row', gap: Spacing.two },
   flex: { flex: 1 },
   stepsTitle: { marginTop: Spacing.two, fontSize: 18, lineHeight: 24 },

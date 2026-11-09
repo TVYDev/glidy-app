@@ -1,7 +1,9 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Crown } from 'lucide-react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/ui/avatar';
+import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing } from '@/constants/theme';
 import { useI18n } from '@/i18n';
 import { useTheme } from '@/hooks/use-theme';
@@ -16,6 +18,8 @@ type MemberStripProps = {
   locations: Record<string, MemberLocation | undefined>;
   /** Metres left for a traveller at a position, or null when there is no destination. */
   distanceLeft: (position: Coord) => number | null;
+  /** Leader only: hand the group to this member. Shows a "Make leader" action on each other member. */
+  onMakeLeader?: (member: Member) => void;
 };
 
 /** Horizontal list of travellers with who is leading and how far each has to go. */
@@ -38,7 +42,7 @@ export function MemberStrip({ members, meId, leaderId, locations, distanceLeft }
           <View
             key={member.userId}
             style={[styles.card, { backgroundColor: theme.backgroundSelected, opacity: location ? 1 : 0.65 }]}>
-            <Avatar userId={member.userId} name={member.displayName} size={40} />
+            <Avatar userId={member.userId} name={member.displayName} avatar={member.avatar} size={40} leader={member.userId === leaderId} />
             <View>
               <ThemedText type="smallBold" numberOfLines={1} style={styles.name}>
                 {isMe ? t('members.you') : member.displayName}
@@ -69,7 +73,7 @@ const styles = StyleSheet.create({
 });
 
 /** Full-width rows for the expanded sheet: who is where, and how far each has to go. */
-export function MemberList({ members, meId, leaderId, locations, distanceLeft }: MemberStripProps) {
+export function MemberList({ members, meId, leaderId, locations, distanceLeft, onMakeLeader }: MemberStripProps) {
   const theme = useTheme();
   const { t } = useI18n();
 
@@ -86,14 +90,29 @@ export function MemberList({ members, meId, leaderId, locations, distanceLeft }:
               listStyles.row,
               index < members.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border },
             ]}>
-            <Avatar userId={member.userId} name={member.displayName} size={40} />
+            <Avatar userId={member.userId} name={member.displayName} avatar={member.avatar} size={40} leader={member.userId === leaderId} />
             <View style={listStyles.text}>
               <ThemedText type="smallBold" numberOfLines={1}>
                 {isMe ? t('members.you') : member.displayName}
               </ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {member.userId === leaderId ? t('members.leader') : t('members.member')}
-              </ThemedText>
+              <View style={listStyles.roleRow}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {member.userId === leaderId ? t('members.leader') : t('members.member')}
+                </ThemedText>
+                {onMakeLeader && member.userId !== leaderId && !isMe && (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t('leader.makeLeader')}
+                    hitSlop={8}
+                    onPress={() => onMakeLeader(member)}
+                    style={({ pressed }) => [listStyles.makeLeader, { backgroundColor: theme.accent, opacity: pressed ? 0.7 : 1 }]}>
+                    <Icon icon={Crown} size={13} color="primaryDark" />
+                    <ThemedText type="caption" style={{ color: theme.primaryDark }}>
+                      {t('leader.makeLeader')}
+                    </ThemedText>
+                  </Pressable>
+                )}
+              </View>
             </View>
             <View style={listStyles.right}>
               <ThemedText type="smallBold">
@@ -114,5 +133,7 @@ const listStyles = StyleSheet.create({
   card: { borderRadius: Radius.lg, borderWidth: 1, paddingHorizontal: Spacing.three },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two + Spacing.one },
   text: { flex: 1 },
+  roleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.two },
+  makeLeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, paddingHorizontal: Spacing.two, paddingVertical: Spacing.half + 1, borderRadius: Radius.pill },
   right: { alignItems: 'flex-end' },
 });

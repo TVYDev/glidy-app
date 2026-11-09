@@ -26,7 +26,16 @@ export default function AppLayout() {
       <Stack.Screen name="join/[code]" options={{ title: t('join.confirmHeader'), presentation: 'modal' }} />
       <Stack.Screen name="routes/new" options={{ title: t('routeNew.title'), presentation: 'modal' }} />
       <Stack.Screen name="routes/[id]" options={{ title: t('route.title') }} />
+      <Stack.Screen name="route/edit" options={{ title: t('routeEdit.title'), presentation: 'modal' }} />
+      <Stack.Screen name="place/search" options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'fade' }} />
+      <Stack.Screen name="place/pick" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
       <Stack.Screen name="routes/map" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+      <Stack.Screen name="settings/account" options={{ title: t('menu.account') }} />
+      <Stack.Screen name="settings/display" options={{ title: t('display.title') }} />
+      <Stack.Screen name="settings/language" options={{ title: t('profile.language') }} />
+      <Stack.Screen name="settings/privacy" options={{ title: t('profile.privacy') }} />
+      <Stack.Screen name="settings/about" options={{ title: t('profile.about') }} />
+      <Stack.Screen name="settings/contact" options={{ title: t('menu.contact') }} />
     </Stack>
   );
 }

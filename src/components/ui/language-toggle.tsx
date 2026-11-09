@@ -33,8 +33,17 @@ export function LanguageToggle({ compact }: { compact?: boolean }) {
             ]}>
             <ThemedText
               type="smallBold"
+              fontLanguage={option.value}
               themeColor={selected ? 'onPrimary' : 'textSecondary'}
-              style={compact ? styles.compactText : undefined}>
+              style={
+                option.value === 'km'
+                  ? compact
+                    ? styles.compactKhmer
+                    : styles.khmerLabel
+                  : compact
+                    ? styles.compactText
+                    : undefined
+              }>
               {compact ? (option.value === 'en' ? 'EN' : 'ខ្មែរ') : option.label}
             </ThemedText>
           </Pressable>
@@ -60,4 +69,7 @@ const styles = StyleSheet.create({
   },
   optionCompact: { flex: 0, minHeight: 36, paddingHorizontal: Spacing.three },
   compactText: { fontSize: 13 },
+  // Khmer script looks smaller than Latin at the same size.
+  compactKhmer: { fontSize: 15 },
+  khmerLabel: { fontSize: 16 },
 });

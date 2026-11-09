@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { StopBadge } from '@/components/map/stop-badge';
 import { Avatar } from '@/components/ui/avatar';
 import { MapPin } from 'lucide-react-native';
 
@@ -13,11 +14,11 @@ import { boundsOf, toLngLat } from '@/lib/geo';
 import type { LiveMapProps } from '@/components/map/types';
 
 /**
- * Tile-free stand-in for the Mapbox map. It plots the route, destination and
- * travellers on a plain canvas, so the live flow works without a Mapbox token
+ * Tile-free stand-in for the Google map. It plots the route, destination and
+ * travellers on a plain canvas, so the live flow works without a Google Maps key
  * (and on web, where the native map is unavailable).
  */
-export function SchematicMap({ route, destination, me, others, insets }: LiveMapProps) {
+export function SchematicMap({ route, destination, me, others, avatars, leaderId, insets }: LiveMapProps) {
   const theme = useTheme();
   const { t } = useI18n();
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -26,6 +27,7 @@ export function SchematicMap({ route, destination, me, others, insets }: LiveMap
 
   const points: [number, number][] = [
     ...(route?.geometry ?? []),
+    ...(route?.stops ?? []).map((s) => toLngLat(s.coord)),
     ...(destination ? [toLngLat(destination.coord)] : []),
     ...(me ? [toLngLat(me.coord)] : []),
     ...others.map((o) => toLngLat(o.coord)),
@@ -58,12 +60,20 @@ export function SchematicMap({ route, destination, me, others, insets }: LiveMap
             const p = project([lng, lat]);
             return <View key={i} style={[styles.dot, { left: p.x - 3, top: p.y - 3, backgroundColor: theme.ink }]} />;
           })}
+          {(route?.stops ?? []).map((stop, index) => {
+            const p = project(toLngLat(stop.coord));
+            return (
+              <View key={`stop-${index}`} style={[styles.marker, { left: p.x - 14, top: p.y - 14 }]}>
+                <StopBadge number={index + 1} />
+              </View>
+            );
+          })}
           {destination && <Pin point={project(toLngLat(destination.coord))} />}
           {others.map((o) => {
             const p = project(toLngLat(o.coord));
             return (
               <View key={o.userId} style={[styles.marker, { left: p.x - 18, top: p.y - 18 }]}>
-                <Avatar userId={o.userId} name={o.displayName} size={36} ring="#FFFFFF" />
+                <Avatar userId={o.userId} name={o.displayName} avatar={avatars?.[o.userId]} size={36} ring="#FFFFFF" leader={o.userId === leaderId} />
               </View>
             );
           })}
@@ -73,7 +83,7 @@ export function SchematicMap({ route, destination, me, others, insets }: LiveMap
                 styles.marker,
                 { left: project(toLngLat(me.coord)).x - 20, top: project(toLngLat(me.coord)).y - 20 },
               ]}>
-              <Avatar userId={me.userId} name={me.displayName} size={40} ring={theme.primary} />
+              <Avatar userId={me.userId} name={me.displayName} avatar={avatars?.[me.userId]} size={40} ring={theme.primary} leader={me.userId === leaderId} />
             </View>
           )}
         </>

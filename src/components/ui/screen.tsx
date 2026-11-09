@@ -30,6 +30,10 @@ export function Screen({
           scrollEnabled={scrollEnabled}
           contentInsetAdjustmentBehavior="automatic"
           keyboardShouldPersistTaps="handled"
+          // The keyboard must not hide what sits under the field (search results): the list gets
+          // room for it, and dragging the page dismisses it.
+          automaticallyAdjustKeyboardInsets
+          keyboardDismissMode="on-drag"
           contentContainerStyle={[styles.content, contentStyle]}>
           {children}
         </ScrollView>

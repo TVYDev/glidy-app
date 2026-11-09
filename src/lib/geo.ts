@@ -1,5 +1,5 @@
 import { t } from '@/i18n';
-import type { Coord, MemberLocation, Route, RouteStep } from '@/lib/types';
+import type { Coord, MemberLocation, Place, Route, RouteStep } from '@/lib/types';
 
 const EARTH_RADIUS_M = 6371000;
 
@@ -285,4 +285,51 @@ export function colorFor(userId: string): string {
     hash = (hash * 31 + userId.charCodeAt(i)) | 0;
   }
   return MEMBER_COLORS[Math.abs(hash) % MEMBER_COLORS.length];
+}
+
+const stopIndexCache = new WeakMap<Route, number[]>();
+
+/**
+ * Where each stop sits along the route, as an index into its geometry. A stop is usually a point
+ * off the road (the middle of a roundabout, a building), so the nearest road vertex to it can be on
+ * the far side of a loop. Each leg of the route ends exactly where the router put that stop on the
+ * road (the leg's "arrive" step), so that point is used, searching forward from the previous stop so
+ * an out-and-back route (leaving along the road it came in on) keeps the stops in order.
+ */
+function stopIndices(route: Route): number[] {
+  const cached = stopIndexCache.get(route);
+  if (cached) return cached;
+  const stops = route.stops ?? [];
+  const arrivals = route.steps.filter((step) => step.type === 'arrive').slice(0, stops.length);
+  const indices: number[] = [];
+  let from = 0;
+  stops.forEach((stop, k) => {
+    const target = arrivals[k]?.location ?? stop.coord;
+    let best = from;
+    let bestDistance = Infinity;
+    for (let i = from; i < route.geometry.length; i += 1) {
+      const [longitude, latitude] = route.geometry[i];
+      const d = distanceBetween(target, { latitude, longitude });
+      // Only a clearly closer vertex replaces the best, so the first of several equal ones is kept.
+      if (d < bestDistance - 1) {
+        bestDistance = d;
+        best = i;
+      }
+    }
+    indices.push(best);
+    from = best;
+  });
+  stopIndexCache.set(route, indices);
+  return indices;
+}
+
+/**
+ * The stops of a route that are still ahead of the point `fromIndex` along its geometry. A stop
+ * counts as passed once you are on or beyond the route vertex where its leg ends.
+ */
+export function remainingStops(route: Route, fromIndex: number): Place[] {
+  const stops = route.stops ?? [];
+  if (stops.length === 0) return [];
+  const indices = stopIndices(route);
+  return stops.filter((_, k) => indices[k] > fromIndex);
 }

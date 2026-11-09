@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 
 import { backend } from '@/lib/backend';
-import type { Profile } from '@/lib/types';
+import type { Avatar, Profile } from '@/lib/types';
 
 type AuthState = {
   /** `undefined` while the stored session is still being restored. */
@@ -11,6 +11,7 @@ type AuthState = {
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateDisplayName: (name: string) => Promise<void>;
+  updateAvatar: (avatar: Avatar | null) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -46,6 +47,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     async updateDisplayName(name) {
       setProfile(await backend.auth.updateDisplayName(name));
+    },
+    async updateAvatar(avatar) {
+      setProfile(await backend.auth.updateAvatar(avatar));
     },
   };
 

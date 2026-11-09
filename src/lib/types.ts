@@ -8,9 +8,9 @@ export type RouteStep = {
   distance: number;
   /** Where the manoeuvre happens. */
   location: Coord;
-  /** Mapbox manoeuvre type (turn, merge, roundabout, arrive…). Missing on routes saved before this existed. */
+  /** Manoeuvre type (turn, merge, roundabout, arrive…); Google's names are mapped to these. Missing on old routes. */
   type?: string;
-  /** Mapbox manoeuvre modifier (left, slight right, uturn…). */
+  /** Manoeuvre modifier (left, slight right, uturn…). */
   modifier?: string;
 };
 
@@ -22,9 +22,19 @@ export type Route = {
   /** Seconds. */
   duration: number;
   steps: RouteStep[];
+  /**
+   * Stops between the start and the end, in the order they are visited. Kept inside the route so
+   * the sessions and saved_routes tables need no new column.
+   */
+  stops?: Place[];
 };
 
-export type Profile = { id: string; displayName: string };
+/** A person's picture: a small photo, or an emoji on a coloured circle. `null` means initials. */
+export type Avatar =
+  | { kind: 'emoji'; emoji: string; color: string }
+  | { kind: 'photo'; /** A `data:image/jpeg;base64,…` URI, about 192 px square. */ uri: string };
+
+export type Profile = { id: string; displayName: string; avatar?: Avatar | null };
 
 export type SessionStatus = 'active' | 'ended';
 
@@ -40,7 +50,7 @@ export type Session = {
   createdAt: string;
 };
 
-export type Member = { userId: string; displayName: string; joinedAt: string };
+export type Member = { userId: string; displayName: string; joinedAt: string; avatar?: Avatar | null };
 
 export type MemberLocation = {
   userId: string;
@@ -83,12 +93,20 @@ export type SessionEvents = {
   /** Someone joined or left: refetch members. */
   onMembersChanged: () => void;
   onStatus?: (status: 'connecting' | 'live' | 'offline') => void;
+  /** Leader only matters: a member asks to take over. Anyone may receive it; only the leader acts. */
+  onLeaderRequest?: (from: { userId: string; displayName: string }) => void;
+  /** The leader said no to this member's request. */
+  onLeaderDeclined?: (userId: string) => void;
 };
 
 export type SessionChannel = {
   sendLocation: (location: MemberLocation) => void;
   notifySessionChanged: () => void;
   notifyMembersChanged: () => void;
+  /** A member asks the leader to hand the group over. */
+  requestLeadership: (from: { userId: string; displayName: string }) => void;
+  /** The leader turns a request down. */
+  declineLeadership: (userId: string) => void;
   stop: () => void;
 };
 
@@ -102,6 +120,8 @@ export interface Backend {
     signIn(email: string, password: string): Promise<Profile>;
     signOut(): Promise<void>;
     updateDisplayName(displayName: string): Promise<Profile>;
+    /** Sets or clears (null) the profile picture. */
+    updateAvatar(avatar: Avatar | null): Promise<Profile>;
   };
   sessions: {
     create(input: CreateSessionInput): Promise<Session>;
@@ -112,6 +132,8 @@ export interface Backend {
     listMine(): Promise<Session[]>;
     update(id: string, patch: { destination: Place | null; route: Route | null }): Promise<Session>;
     end(id: string): Promise<void>;
+    /** Leader hands the group to another member and returns the updated session. */
+    transferLeader(id: string, userId: string): Promise<Session>;
     leave(id: string): Promise<void>;
     members(id: string): Promise<Member[]>;
     openChannel(session: Session, me: Profile, events: SessionEvents): SessionChannel;

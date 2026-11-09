@@ -1,7 +1,8 @@
-import { DEFAULT_ORIGIN } from '@/lib/mapbox-api';
+import { DEFAULT_ORIGIN } from '@/lib/maps-api';
 import { t } from '@/i18n';
 import { storage } from '@/lib/storage';
 import type {
+  Avatar,
   Backend,
   CreateSessionInput,
   Member,
@@ -20,7 +21,7 @@ import type {
  * simulated so the live map has something to show.
  */
 
-type StoredUser = { id: string; email: string; password: string; displayName: string };
+type StoredUser = { id: string; email: string; password: string; displayName: string; avatar?: Avatar | null };
 type StoredMember = { sessionId: string; userId: string; joinedAt: string };
 type State = {
   users: StoredUser[];
@@ -34,8 +35,12 @@ const KEY = 'glidy.mock.v1';
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 const demoTravellers = (): Profile[] => [
-  { id: 'demo-alex', displayName: `Alex ${t('common.demoSuffix')}` },
-  { id: 'demo-sam', displayName: `Sam ${t('common.demoSuffix')}` },
+  {
+    id: 'demo-alex',
+    displayName: `Alex ${t('common.demoSuffix')}`,
+    avatar: { kind: 'emoji', emoji: '🦊', color: '#E07A1F' },
+  },
+  { id: 'demo-sam', displayName: `Sam ${t('common.demoSuffix')}`, avatar: { kind: 'emoji', emoji: '🚙', color: '#2D6CDF' } },
 ];
 
 const load = (): State =>
@@ -48,7 +53,7 @@ const makeCode = () =>
 
 const listeners = new Set<(profile: Profile | null) => void>();
 const toProfile = (u: StoredUser | undefined): Profile | null =>
-  u ? { id: u.id, displayName: u.displayName } : null;
+  u ? { id: u.id, displayName: u.displayName, avatar: u.avatar ?? null } : null;
 const emitAuth = (state: State) => {
   const profile = toProfile(state.users.find((u) => u.id === state.currentUserId));
   listeners.forEach((l) => l(profile));
@@ -92,7 +97,7 @@ export function createMockBackend(): Backend {
         state.currentUserId = user.id;
         save(state);
         emitAuth(state);
-        return { id: user.id, displayName: user.displayName };
+        return { id: user.id, displayName: user.displayName, avatar: user.avatar ?? null };
       },
       async signIn(email, password) {
         const state = load();
@@ -102,7 +107,7 @@ export function createMockBackend(): Backend {
         state.currentUserId = user.id;
         save(state);
         emitAuth(state);
-        return { id: user.id, displayName: user.displayName };
+        return { id: user.id, displayName: user.displayName, avatar: user.avatar ?? null };
       },
       async signOut() {
         const state = load();
@@ -110,13 +115,21 @@ export function createMockBackend(): Backend {
         save(state);
         emitAuth(state);
       },
+      async updateAvatar(avatar) {
+        const state = load();
+        const user = requireUser(state);
+        user.avatar = avatar;
+        save(state);
+        emitAuth(state);
+        return { id: user.id, displayName: user.displayName, avatar: user.avatar ?? null };
+      },
       async updateDisplayName(displayName) {
         const state = load();
         const user = requireUser(state);
         user.displayName = displayName.trim();
         save(state);
         emitAuth(state);
-        return { id: user.id, displayName: user.displayName };
+        return { id: user.id, displayName: user.displayName, avatar: user.avatar ?? null };
       },
     },
 
@@ -181,6 +194,19 @@ export function createMockBackend(): Backend {
         session.status = 'ended';
         save(state);
       },
+      async transferLeader(id, userId) {
+        const state = load();
+        const user = requireUser(state);
+        const session = findSession(state, id);
+        if (session.leaderId !== user.id) throw new Error(t('err.onlyLeaderHandOver'));
+        const isMember =
+          state.members.some((m) => m.sessionId === id && m.userId === userId) ||
+          demoTravellers().some((traveller) => traveller.id === userId);
+        if (!isMember) throw new Error(t('err.leaderTransfer'));
+        session.leaderId = userId;
+        save(state);
+        return session;
+      },
       async leave(id) {
         const state = load();
         const user = requireUser(state);
@@ -191,20 +217,26 @@ export function createMockBackend(): Backend {
         const state = load();
         const real: Member[] = state.members
           .filter((m) => m.sessionId === id)
-          .map((m) => ({
-            userId: m.userId,
-            displayName: state.users.find((u) => u.id === m.userId)?.displayName ?? t('common.traveller'),
-            joinedAt: m.joinedAt,
-          }));
+          .map((m) => {
+            const user = state.users.find((u) => u.id === m.userId);
+            return {
+              userId: m.userId,
+              displayName: user?.displayName ?? t('common.traveller'),
+              joinedAt: m.joinedAt,
+              avatar: user?.avatar ?? null,
+            };
+          });
         const demo: Member[] = demoTravellers().map((t) => ({
           userId: t.id,
           displayName: t.displayName,
           joinedAt: new Date().toISOString(),
+          avatar: t.avatar ?? null,
         }));
         return [...real, ...demo];
       },
-      openChannel(session: Session, _me: Profile, events: SessionEvents): SessionChannel {
+      openChannel(session: Session, me: Profile, events: SessionEvents): SessionChannel {
         let tick = 0;
+        let asked = false;
         events.onStatus?.('live');
         const timer = setInterval(() => {
           tick += 1;
@@ -213,11 +245,29 @@ export function createMockBackend(): Backend {
           demoTravellers().forEach((traveller, index) => {
             events.onLocation(simulate(traveller, index, tick, current));
           });
+          // Demo: a few ticks in, a simulated traveller asks the leader to hand over, so that flow can be tried.
+          if (!asked && tick === 7 && current.leaderId === me.id) {
+            asked = true;
+            const first = demoTravellers()[0];
+            events.onLeaderRequest?.({ userId: first.id, displayName: first.displayName });
+          }
         }, 3000);
         return {
           sendLocation() {},
           notifySessionChanged() {},
           notifyMembersChanged() {},
+          // Demo: the simulated leader says yes after a moment.
+          requestLeadership() {
+            setTimeout(() => {
+              const state = load();
+              const current = state.sessions.find((s) => s.id === session.id);
+              if (!current) return;
+              current.leaderId = me.id;
+              save(state);
+              events.onSessionChanged();
+            }, 2500);
+          },
+          declineLeadership() {},
           stop() {
             clearInterval(timer);
           },

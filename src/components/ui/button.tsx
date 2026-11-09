@@ -6,7 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing, type ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-type Variant = 'primary' | 'secondary' | 'ink' | 'ghost' | 'danger';
+type Variant = 'primary' | 'secondary' | 'ink' | 'ghost' | 'danger' | 'destructive';
 
 type ButtonProps = {
   label: string;
@@ -26,6 +26,8 @@ const VARIANTS: Record<Variant, { bg: ThemeColor | 'transparent'; fg: ThemeColor
   ink: { bg: 'ink', fg: 'onInk' },
   ghost: { bg: 'transparent', fg: 'primaryDark' },
   danger: { bg: 'transparent', fg: 'danger' },
+  /** A filled red button for the confirming action of something that cannot be undone. */
+  destructive: { bg: 'danger', fg: 'onInk' },
 };
 
 export function Button({

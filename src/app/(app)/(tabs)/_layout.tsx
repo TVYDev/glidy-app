@@ -1,5 +1,5 @@
 import { Tabs, TabList, TabSlot, TabTrigger, type TabTriggerSlotProps } from 'expo-router/ui';
-import { House, Map, User, type LucideIcon } from 'lucide-react-native';
+import { House, Map, Menu, type LucideIcon } from 'lucide-react-native';
 import type { ComponentProps } from 'react';
 import { Pressable, StyleSheet, View, type ViewProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,7 +30,7 @@ export default function TabsLayout() {
             <TabItem icon={Map} label={t('tabs.routes')} />
           </TabTrigger>
           <TabTrigger name="profile" href="/profile" asChild>
-            <TabItem icon={User} label={t('tabs.profile')} />
+            <TabItem icon={Menu} label={t('tabs.profile')} />
           </TabTrigger>
         </FloatingBar>
       </TabList>

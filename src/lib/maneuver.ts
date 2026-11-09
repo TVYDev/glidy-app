@@ -17,7 +17,7 @@ import {
 import type { RouteStep } from '@/lib/types';
 
 /**
- * Icon for a turn. Uses the Mapbox manoeuvre type and modifier when the route has them (routes
+ * Icon for a turn. Uses the manoeuvre type and modifier when the route has them (routes
  * saved earlier do not, and fall back to the first words of the instruction).
  */
 export function maneuverIcon(step: Pick<RouteStep, 'type' | 'modifier' | 'instruction'>): LucideIcon {

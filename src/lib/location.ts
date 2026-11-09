@@ -1,6 +1,6 @@
 import * as Location from 'expo-location';
 
-import { DEFAULT_ORIGIN } from '@/lib/mapbox-api';
+import { DEFAULT_ORIGIN } from '@/lib/maps-api';
 import type { Coord } from '@/lib/types';
 
 /** Resolves to `null` if the promise has not settled within `ms` (it is not cancelled). */

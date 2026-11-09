@@ -9,6 +9,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
+import { ScreenHero } from '@/components/ui/screen-hero';
 import { Radius, Spacing } from '@/constants/theme';
 import { useI18n } from '@/i18n';
 import { useTheme } from '@/hooks/use-theme';
@@ -52,9 +53,7 @@ export default function InviteScreen() {
 
   return (
     <Screen scroll edges={['left', 'right', 'bottom']} contentStyle={styles.content}>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
-        {t('invite.intro', { name: session.name })}
-      </ThemedText>
+      <ScreenHero title={t('invite.hero')} body={t('invite.intro', { name: session.name })} />
 
       <View style={[styles.qr, { backgroundColor: '#FFFFFF', borderColor: theme.border }]}>
         <QRCode value={link} size={220} color="#212121" backgroundColor="#FFFFFF" />
@@ -64,7 +63,7 @@ export default function InviteScreen() {
         <ThemedText type="caption" themeColor="textSecondary">
           {t('invite.code')}
         </ThemedText>
-        <ThemedText type="title" style={styles.code}>
+        <ThemedText type="display" fontLanguage="en" style={styles.code}>
           {session.code}
         </ThemedText>
       </Card>
@@ -85,10 +84,9 @@ export default function InviteScreen() {
 
 const styles = StyleSheet.create({
   content: { alignItems: 'stretch', padding: Spacing.four },
-  center: { textAlign: 'center' },
   qr: { alignSelf: 'center', padding: Spacing.three, borderRadius: Radius.lg, borderWidth: 1 },
   codeBox: { alignItems: 'center', gap: Spacing.one },
-  code: { letterSpacing: 6, fontSize: 40, lineHeight: 48, fontWeight: 800 },
+  code: { letterSpacing: 6, fontSize: 40, lineHeight: 48 },
   actions: { flexDirection: 'row', gap: Spacing.two },
   flex: { flex: 1 },
 });

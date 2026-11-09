@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { getRoute } from '@/lib/mapbox-api';
-import { distanceBetween, nextTurn, routeProgress, snapToRoute } from '@/lib/geo';
+import { planRoutes } from '@/lib/maps-api';
+import { distanceBetween, nextTurn, remainingStops, routeProgress, snapToRoute } from '@/lib/geo';
 import type { Coord, MemberLocation, Place, Route } from '@/lib/types';
 
 /** Further than this from the route counts as having left it (GPS is good to roughly 10–20 m). */
@@ -17,7 +17,7 @@ const ARRIVAL_METRES = 40;
 const CONNECTOR_METRES_PER_SECOND = 8;
 
 /**
- * Mapbox starts a new route at the nearest road, which can be hundreds of metres from where you are
+ * Google starts a new route at the nearest road, which can be hundreds of metres from where you are
  * (a car park, a driveway). Start the route at your position with a short connector instead;
  * otherwise you would still count as off the route and be rerouted again and again.
  */
@@ -57,6 +57,12 @@ export function useDriveNavigation({ route, destination, position, enabled }: In
   const turn = active && snap ? nextTurn(active, snap) : null;
   const progress = active && position ? routeProgress(active, position.coord) : null;
   const arrived = progress != null && progress.remainingDistance < ARRIVAL_METRES;
+  // A reroute must still pass the stops that are ahead; the ones already visited are dropped.
+  const stopsAhead = active && snap ? remainingStops(active, snap.index) : [];
+  // How many of the group's stops are behind me. Counted against the group's route, so it stays
+  // right after a personal reroute (which only carries the stops still ahead).
+  const stopsTotal = route?.stops?.length ?? 0;
+  const stopsPassed = snap ? Math.max(0, stopsTotal - stopsAhead.length) : 0;
 
   // While off the route, re-check every couple of seconds even if GPS goes quiet (a stopped car sends
   // no new fixes), so the reroute is not stuck waiting for the next one.
@@ -88,14 +94,16 @@ export function useDriveNavigation({ route, destination, position, enabled }: In
     inFlight.current = true;
     lastAttempt.current = now;
     const here = { latitude: lat, longitude: lng };
-    getRoute(here, destination.coord)
-      .then((fresh) => setPersonal({ base: route, route: startingFrom(here, fresh) }))
+    planRoutes(here, stopsAhead, destination)
+      .then(([fresh]) => setPersonal({ base: route, route: startingFrom(here, fresh) }))
       .catch(() => {
         // Keep the old route; the next position update past the cooldown tries again.
       })
       .finally(() => {
         inFlight.current = false;
       });
+    // `stopsAhead` is a fresh array each render; only its content matters and it changes with `lat`/`lng`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offRoute, enabled, destination, route, lat, lng, recheck]);
 
   return {
@@ -107,5 +115,8 @@ export function useDriveNavigation({ route, destination, position, enabled }: In
     /** Off the road and a new route is being worked out. */
     rerouting: enabled && offRoute,
     arrived,
+    /** Stops of the group's route already passed, and how many there are. */
+    stopsPassed,
+    stopsTotal,
   };
 }

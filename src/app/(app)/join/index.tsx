@@ -4,9 +4,9 @@ import { ScanLine } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
+import { ScreenHero } from '@/components/ui/screen-hero';
 import { TextField } from '@/components/ui/text-field';
 import { Radius, Spacing } from '@/constants/theme';
 import { useI18n } from '@/i18n';
@@ -47,9 +47,7 @@ export default function JoinScreen() {
 
   return (
     <Screen scroll edges={['left', 'right', 'bottom']}>
-      <ThemedText type="small" themeColor="textSecondary">
-        {t('join.intro')}
-      </ThemedText>
+      <ScreenHero title={t('join.hero')} body={t('join.intro')} />
 
       <TextField
         label={t('join.code')}

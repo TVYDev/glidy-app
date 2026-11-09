@@ -1,12 +1,14 @@
 import { router, useFocusEffect } from 'expo-router';
-import { Bookmark, Plus, Route } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { Card, IconBadge, ListRow } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
+import { EmptyArt } from '@/components/ui/brand-art';
+import { TripCard } from '@/components/ui/trip-card';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useI18n } from '@/i18n';
 import { useTheme } from '@/hooks/use-theme';
@@ -62,8 +64,10 @@ export default function RoutesScreen() {
 
         {routes?.length === 0 && (
           <Card style={styles.empty}>
-            <IconBadge icon={Bookmark} size={52} tone="soft" />
-            <ThemedText type="smallBold">{t('routes.emptyTitle')}</ThemedText>
+            <EmptyArt kind="routes" />
+            <ThemedText type="smallBold" style={styles.emptyTitle}>
+              {t('routes.emptyTitle')}
+            </ThemedText>
             <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
               {t('routes.emptyBody')}
             </ThemedText>
@@ -71,10 +75,10 @@ export default function RoutesScreen() {
         )}
 
         {routes?.map((r) => (
-          <ListRow
+          <TripCard
             key={r.id}
-            icon={Route}
             title={r.name}
+            geometry={r.route.geometry}
             subtitle={`${r.origin ? `${r.origin.name} → ` : ''}${r.destination.name} · ${formatDistance(
               r.route.distance,
             )} · ${formatDuration(r.route.duration)}${r.isShared ? ` · ${t('routes.shared')}` : ''}`}
@@ -90,5 +94,6 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   content: { padding: Spacing.three, gap: Spacing.three, paddingBottom: BottomTabInset + Spacing.four },
   empty: { alignItems: 'center', gap: Spacing.two, padding: Spacing.four },
+  emptyTitle: { marginTop: Spacing.two },
   emptyText: { textAlign: 'center' },
 });

@@ -32,6 +32,8 @@ export const Colors = {
     /** Floating tab bar and other "ink" surfaces. */
     ink: '#212121',
     onInk: '#F9F6F0',
+    /** Strokes of drawn art (route lines): readable on the soft amber tile in either theme. */
+    line: '#212121',
   },
   dark: {
     text: '#F9F6F0',
@@ -48,6 +50,7 @@ export const Colors = {
     danger: '#EF4444',
     ink: '#0F0D0A',
     onInk: '#F9F6F0',
+    line: '#EFB708',
   },
 } as const;
 
@@ -85,8 +88,27 @@ export function fontFamilyFor(language: Language, weight: FontWeight | string | 
   return FONT_FAMILIES[language][nearest];
 }
 
+/**
+ * Display (headline) fonts: heavy Exo 2 for English, and Moul, the ornate Khmer headline face from
+ * the Glidy web project, for Khmer. Moul has a single weight and is much wider than Kantumruy Pro,
+ * so use it only for short headlines.
+ */
+export const DISPLAY_FONT: Record<Language, string> = {
+  en: 'Exo2_800ExtraBold',
+  km: 'Moul_400Regular',
+};
+
 /** Khmer glyphs are taller than Latin ones and need more line height to avoid clipping. */
 export const KHMER_LINE_HEIGHT_SCALE = 1.2;
+
+/**
+ * A font size or line height multiplied by the user's text-size setting. Large display numbers
+ * (32 and up) only grow half as much, so headings and big figures do not overflow their cards.
+ */
+export function scaleText(size: number, scale: number): number {
+  const factor = size >= 32 ? 1 + (scale - 1) * 0.5 : scale;
+  return Math.round(size * factor * 10) / 10;
+}
 
 export const Fonts = Platform.select({
   ios: {

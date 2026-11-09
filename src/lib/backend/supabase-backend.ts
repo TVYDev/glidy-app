@@ -2,7 +2,9 @@ import type { User } from '@supabase/supabase-js';
 
 import { t } from '@/i18n';
 import { getSupabase } from '@/lib/backend/supabase-client';
+import { MAX_PHOTO_CHARS, parseAvatar } from '@/lib/avatar';
 import type {
+  Avatar,
   Backend,
   CreateSessionInput,
   Member,
@@ -65,10 +67,23 @@ const toSavedRoute = (r: SavedRouteRow): SavedRoute => ({
   createdAt: r.created_at,
 });
 
+/**
+ * Avatars live in `profiles.avatar`, NOT in the auth user metadata: metadata is embedded in the
+ * access token (JWT) that is sent with every request, and a photo would bloat it.
+ */
+const avatarCache = new Map<string, Avatar | null>();
+/** Set when the database has no `avatar` column yet (the migration has not been run). */
+let avatarColumnMissing = false;
+
+/** Postgres/PostgREST errors for a column that does not exist. */
+const isMissingColumn = (error: { code?: string; message?: string } | null) =>
+  error != null && (error.code === '42703' || error.code === 'PGRST204' || /avatar/i.test(error.message ?? ''));
+
 const toProfile = (user: User): Profile => ({
   id: user.id,
   displayName:
     (user.user_metadata?.display_name as string | undefined) || user.email?.split('@')[0] || t('common.traveller'),
+  avatar: avatarCache.get(user.id) ?? null,
 });
 
 function fail(error: { message: string } | null): never | void {
@@ -77,6 +92,17 @@ function fail(error: { message: string } | null): never | void {
 
 export function createSupabaseBackend(): Backend {
   const supabase = getSupabase();
+
+  /** Fetches my avatar into the cache. Never throws: a missing avatar just means initials. */
+  async function loadAvatar(userId: string): Promise<void> {
+    if (avatarColumnMissing) return;
+    const { data, error } = await supabase.from('profiles').select('avatar').eq('id', userId).maybeSingle();
+    if (error) {
+      if (isMissingColumn(error)) avatarColumnMissing = true;
+      return;
+    }
+    avatarCache.set(userId, parseAvatar(data?.avatar));
+  }
 
   async function requireUserId(): Promise<string> {
     const { data } = await supabase.auth.getSession();
@@ -91,13 +117,27 @@ export function createSupabaseBackend(): Backend {
     auth: {
       async current() {
         const { data } = await supabase.auth.getSession();
-        return data.session ? toProfile(data.session.user) : null;
+        if (!data.session) return null;
+        await loadAvatar(data.session.user.id);
+        return toProfile(data.session.user);
       },
       onChange(callback) {
+        let active = true;
         const { data } = supabase.auth.onAuthStateChange((_event, session) => {
           callback(session ? toProfile(session.user) : null);
+          // Other Supabase calls must not run inside this callback (they can deadlock the auth
+          // client), so the avatar is fetched right after and delivered with a second callback.
+          if (session && !avatarCache.has(session.user.id) && !avatarColumnMissing) {
+            const user = session.user;
+            setTimeout(() => {
+              void loadAvatar(user.id).then(() => active && callback(toProfile(user)));
+            }, 0);
+          }
         });
-        return () => data.subscription.unsubscribe();
+        return () => {
+          active = false;
+          data.subscription.unsubscribe();
+        };
       },
       async signUp(email, password, displayName) {
         const { data, error } = await supabase.auth.signUp({
@@ -114,11 +154,28 @@ export function createSupabaseBackend(): Backend {
       async signIn(email, password) {
         const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         fail(error);
+        await loadAvatar(data.user!.id);
         return toProfile(data.user!);
       },
       async signOut() {
         const { error } = await supabase.auth.signOut();
         fail(error);
+      },
+      async updateAvatar(avatar) {
+        if (avatar?.kind === 'photo' && avatar.uri.length > MAX_PHOTO_CHARS) throw new Error(t('err.avatarTooLarge'));
+        const userId = await requireUserId();
+        const { error } = await supabase.from('profiles').update({ avatar }).eq('id', userId);
+        if (error) {
+          if (isMissingColumn(error)) {
+            avatarColumnMissing = true;
+            throw new Error(t('err.avatarUnavailable'));
+          }
+          throw new Error(error.message);
+        }
+        avatarCache.set(userId, avatar);
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) throw new Error(t('err.signInFirst'));
+        return toProfile(data.session.user);
       },
       async updateDisplayName(displayName) {
         const name = displayName.trim();
@@ -186,6 +243,13 @@ export function createSupabaseBackend(): Backend {
         const { error } = await supabase.from('sessions').update({ status: 'ended' }).eq('id', id);
         fail(error);
       },
+      async transferLeader(id, userId) {
+        const { data, error } = await supabase.rpc('transfer_leadership', { p_session: id, p_user: userId });
+        fail(error);
+        const row = (Array.isArray(data) ? data[0] : data) as SessionRow | undefined;
+        if (!row) throw new Error(t('err.leaderTransfer'));
+        return toSession(row);
+      },
       async leave(id) {
         const userId = await requireUserId();
         const { error } = await supabase
@@ -196,17 +260,28 @@ export function createSupabaseBackend(): Backend {
         fail(error);
       },
       async members(id) {
-        const { data, error } = await supabase
-          .from('session_members')
-          .select('user_id, joined_at, profiles(display_name)')
-          .eq('session_id', id);
-        fail(error);
-        type Row = { user_id: string; joined_at: string; profiles: { display_name: string } | null };
-        return (data as unknown as Row[]).map(
+        const fetchMembers = (columns: string) =>
+          supabase.from('session_members').select(columns).eq('session_id', id);
+        let result = await fetchMembers(
+          avatarColumnMissing ? 'user_id, joined_at, profiles(display_name)' : 'user_id, joined_at, profiles(display_name, avatar)',
+        );
+        if (result.error && !avatarColumnMissing && isMissingColumn(result.error)) {
+          // The database has no avatar column yet: show members without pictures instead of failing.
+          avatarColumnMissing = true;
+          result = await fetchMembers('user_id, joined_at, profiles(display_name)');
+        }
+        fail(result.error);
+        type Row = {
+          user_id: string;
+          joined_at: string;
+          profiles: { display_name: string; avatar?: unknown } | null;
+        };
+        return (result.data as unknown as Row[]).map(
           (r): Member => ({
             userId: r.user_id,
             displayName: r.profiles?.display_name ?? t('common.traveller'),
             joinedAt: r.joined_at,
+            avatar: parseAvatar(r.profiles?.avatar),
           }),
         );
       },
@@ -223,7 +298,18 @@ export function createSupabaseBackend(): Backend {
             if (location.userId !== me.id) events.onLocation(location);
           })
           .on('broadcast', { event: 'session' }, () => events.onSessionChanged())
-          .on('broadcast', { event: 'members' }, () => events.onMembersChanged());
+          .on('broadcast', { event: 'members' }, () => events.onMembersChanged())
+          .on('broadcast', { event: 'leader-request' }, ({ payload }) => {
+            const from = payload as { userId?: string; displayName?: string };
+            if (from.userId && from.userId !== me.id) {
+              events.onLeaderRequest?.({ userId: from.userId, displayName: from.displayName ?? t('common.traveller') });
+            }
+          })
+          .on('broadcast', { event: 'leader-declined' }, ({ payload }) => {
+            const { userId } = payload as { userId?: string };
+            // Only the member who asked needs to hear the answer.
+            if (userId === me.id) events.onLeaderDeclined?.(userId);
+          });
 
         // Private channels are authorised with the user's JWT, so make sure the realtime
         // socket has it before joining; otherwise the join is rejected and the channel closes.
@@ -255,6 +341,8 @@ export function createSupabaseBackend(): Backend {
           sendLocation: (location) => send('location', location),
           notifySessionChanged: () => send('session', {}),
           notifyMembersChanged: () => send('members', {}),
+          requestLeadership: (from) => send('leader-request', from),
+          declineLeadership: (userId) => send('leader-declined', { userId }),
           stop: () => {
             stopped = true;
             void supabase.removeChannel(channel);

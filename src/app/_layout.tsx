@@ -5,6 +5,7 @@ import {
   Exo2_700Bold,
   Exo2_800ExtraBold,
 } from '@expo-google-fonts/exo-2';
+import { Moul_400Regular } from '@expo-google-fonts/moul';
 import {
   KantumruyPro_400Regular,
   KantumruyPro_500Medium,
@@ -18,6 +19,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 
+import { DialogProvider } from '@/components/ui/dialog';
 import { useTheme } from '@/hooks/use-theme';
 import { AuthProvider, useAuth } from '@/providers/auth-provider';
 
@@ -44,6 +46,7 @@ function Navigation() {
     KantumruyPro_500Medium,
     KantumruyPro_600SemiBold,
     KantumruyPro_700Bold,
+    Moul_400Regular,
   });
   const fontsReady = fontsLoaded || fontError != null;
   const scheme = useColorScheme();
@@ -74,14 +77,16 @@ function Navigation() {
   return (
     <ThemeProvider value={navTheme}>
       <StatusBar style="auto" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Protected guard={signedIn} redirectTo="/welcome">
-          <Stack.Screen name="(app)" />
-        </Stack.Protected>
-        <Stack.Protected guard={!signedIn} redirectTo="/">
-          <Stack.Screen name="(auth)" />
-        </Stack.Protected>
-      </Stack>
+      <DialogProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Protected guard={signedIn} redirectTo="/welcome">
+            <Stack.Screen name="(app)" />
+          </Stack.Protected>
+          <Stack.Protected guard={!signedIn} redirectTo="/">
+            <Stack.Screen name="(auth)" />
+          </Stack.Protected>
+        </Stack>
+      </DialogProvider>
     </ThemeProvider>
   );
 }

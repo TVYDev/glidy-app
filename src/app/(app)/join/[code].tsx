@@ -1,12 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Users } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { IconBadge } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
+import { ScreenHero } from '@/components/ui/screen-hero';
 import { Spacing } from '@/constants/theme';
 import { useI18n } from '@/i18n';
 import { backend } from '@/lib/backend';
@@ -32,15 +31,7 @@ export default function JoinCodeScreen() {
 
   return (
     <Screen edges={['left', 'right', 'bottom']} contentStyle={styles.content}>
-      <View style={styles.hero}>
-        <IconBadge icon={Users} size={80} />
-        <ThemedText type="subtitle" style={styles.center}>
-          {t('join.confirmTitle', { code })}
-        </ThemedText>
-        <ThemedText themeColor="textSecondary" style={styles.center}>
-          {t('join.confirmBody')}
-        </ThemedText>
-      </View>
+      <ScreenHero title={t('join.confirmTitle', { code })} body={t('join.confirmBody')} />
 
       {error && (
         <ThemedText type="small" themeColor="danger" style={styles.center}>
@@ -57,8 +48,7 @@ export default function JoinCodeScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { flex: 1, justifyContent: 'space-between', padding: Spacing.four },
-  hero: { alignItems: 'center', gap: Spacing.three, paddingTop: Spacing.five },
+  content: { flex: 1, justifyContent: 'space-between', padding: Spacing.three },
   center: { textAlign: 'center' },
   actions: { gap: Spacing.two },
 });

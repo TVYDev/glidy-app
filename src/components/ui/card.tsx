@@ -76,11 +76,11 @@ export function ListRow({ icon, title, subtitle, onPress, style }: RowProps) {
       ]}>
       <IconBadge icon={icon} />
       <View style={styles.rowText}>
-        <ThemedText type="smallBold" numberOfLines={1}>
+        <ThemedText type="smallBold" numberOfLines={2}>
           {title}
         </ThemedText>
         {subtitle ? (
-          <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+          <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
             {subtitle}
           </ThemedText>
         ) : null}

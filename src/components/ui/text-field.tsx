@@ -1,8 +1,9 @@
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing, fontFamilyFor } from '@/constants/theme';
+import { Radius, Spacing, fontFamilyFor, scaleText } from '@/constants/theme';
 import { useI18n } from '@/i18n';
+import { useTextScale } from '@/hooks/use-settings';
 import { useTheme } from '@/hooks/use-theme';
 
 type TextFieldProps = TextInputProps & { label?: string };
@@ -10,6 +11,7 @@ type TextFieldProps = TextInputProps & { label?: string };
 export function TextField({ label, style, ...rest }: TextFieldProps) {
   const theme = useTheme();
   const { language } = useI18n();
+  const scale = useTextScale();
   return (
     <View style={styles.wrapper}>
       {label ? (
@@ -27,6 +29,7 @@ export function TextField({ label, style, ...rest }: TextFieldProps) {
             color: theme.text,
             borderColor: theme.border,
             fontFamily: fontFamilyFor(language, 500),
+            fontSize: scaleText(16, scale),
           },
           style,
         ]}

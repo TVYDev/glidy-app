@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { BackButton } from '@/components/ui/back-button';
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
+import { ScreenHero } from '@/components/ui/screen-hero';
 import { TextField } from '@/components/ui/text-field';
 import { Spacing } from '@/constants/theme';
 import { useI18n } from '@/i18n';
@@ -37,11 +38,10 @@ export default function SignUpScreen() {
   return (
     <Screen scroll edges={['top', 'left', 'right', 'bottom']}>
       <BackButton />
-      <ThemedText type="subtitle">{t('auth.createAccount')}</ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
-        {t('auth.nameHelp')}
-        {isMock ? ` ${t('auth.demoNote')}` : ''}
-      </ThemedText>
+      <ScreenHero
+        title={t('auth.createAccount')}
+        body={`${t('auth.nameHelp')}${isMock ? ` ${t('auth.demoNote')}` : ''}`}
+      />
       <View style={styles.form}>
         <TextField
           label={t('auth.name')}

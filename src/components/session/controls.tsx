@@ -66,7 +66,7 @@ export function ActionTile({ label, icon, onPress, highlight, disabled }: Action
       <View style={[styles.tileIcon, { backgroundColor: highlight ? theme.primary : theme.backgroundSelected }]}>
         <Icon icon={icon} size={20} color={highlight ? 'onPrimary' : 'text'} />
       </View>
-      <ThemedText type="caption" numberOfLines={2} style={styles.tileLabel}>
+      <ThemedText type="caption" numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.75} style={styles.tileLabel}>
         {label}
       </ThemedText>
     </Pressable>

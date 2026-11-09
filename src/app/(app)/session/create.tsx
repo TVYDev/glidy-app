@@ -8,12 +8,13 @@ import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card, IconBadge } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
+import { ScreenHero } from '@/components/ui/screen-hero';
 import { TextField } from '@/components/ui/text-field';
 import { Spacing } from '@/constants/theme';
 import { useI18n } from '@/i18n';
 import { backend } from '@/lib/backend';
 import { getOrigin } from '@/lib/location';
-import { getRoute } from '@/lib/mapbox-api';
+import { getRoute } from '@/lib/maps-api';
 import type { Place } from '@/lib/types';
 
 export default function CreateSessionScreen() {
@@ -42,9 +43,7 @@ export default function CreateSessionScreen() {
 
   return (
     <Screen scroll edges={['left', 'right', 'bottom']}>
-      <ThemedText type="small" themeColor="textSecondary">
-        {t('create.intro')}
-      </ThemedText>
+      <ScreenHero title={t('create.hero')} body={t('create.intro')} />
 
       <TextField label={t('create.groupName')} value={name} onChangeText={setName} />
 
@@ -67,7 +66,7 @@ export default function CreateSessionScreen() {
           </Card>
         </View>
       ) : (
-        <PlaceSearch label={t('create.destinationOptional')} onSelect={setDestination} />
+        <PlaceSearch label={t('create.destinationOptional')} onSelect={setDestination} mapPick />
       )}
 
       {error && (
